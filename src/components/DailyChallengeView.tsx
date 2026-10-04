@@ -14,6 +14,7 @@ import {
 import { useApp } from '../context/AppContext';
 import { getTodayChallenge } from '../data/challenges';
 import { runCode } from '../utils/codeRunner';
+import { dateKey } from '../utils/progress';
 
 export const DailyChallengeView: React.FC = () => {
   const { 
@@ -24,7 +25,7 @@ export const DailyChallengeView: React.FC = () => {
   } = useApp();
 
   const challenge = getTodayChallenge();
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = dateKey();
   const isSolvedToday = user.dailyChallengeSolvedDate === todayStr || Boolean(user.solvedExercises[challenge.id]);
 
   // Countdown timer to midnight
