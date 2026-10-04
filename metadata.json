@@ -1,0 +1,6 @@
+{
+  "name": "DevPulse - Interactive Coding Academy",
+  "description": "Master Python, JavaScript, TypeScript, Go & SQL with interactive coding challenges, live test runner, streak tracking, competitive leaderboards, and developer community forums.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
