@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import confetti from 'canvas-confetti';
 import { UserProfile, LanguageId, ForumPost, Badge, LeaderboardUser } from '../types';
 import { COURSES, ALL_EXERCISES } from '../data/courses';
@@ -6,19 +6,6 @@ import { BADGES } from '../data/badgesData';
 import { SEED_FORUM_POSTS } from '../data/forumData';
 import { SEED_LEADERBOARD, LEAGUE_TIERS } from '../data/leaderboardData';
 import { getTodayChallenge } from '../data/challenges';
-import {
-  dateKey,
-  awardXp,
-  AwardResult,
-  BadgeContext,
-  normalizeUser,
-  purchaseStreakFreeze,
-} from '../utils/progress';
-
-const BADGE_CONTEXT: BadgeContext = {
-  exerciseTrack: Object.fromEntries(ALL_EXERCISES.map(e => [e.id, e.trackId])),
-  sqlExerciseIds: (COURSES.sql?.modules.flatMap(m => m.exercises) || []).map(e => e.id),
-};
 
 export type NavigationTab =
   | 'tracks'
@@ -151,7 +138,7 @@ const INITIAL_USER: UserProfile = {
   streak: 5,
   longestStreak: 12,
   streakFreezes: 2,
-  lastActiveDate: dateKey(),
+  lastActiveDate: new Date().toISOString().split('T')[0],
   league: 'Gold',
   solvedExercises: {
     'py-ex-1': { passedAt: new Date(Date.now() - 86400000 * 2).toISOString(), code: 'def is_palindrome(s):\n    c = "".join(x.lower() for x in s if x.isalnum())\n    return c == c[::-1]' },
@@ -170,23 +157,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const saved = localStorage.getItem('devpulse_user_profile');
       if (saved) {
         const parsed = JSON.parse(saved);
-        // Ensure new fields exist and level/league/streak are consistent
-        return normalizeUser({ ...INITIAL_USER, ...parsed }, dateKey());
+        // Ensure new fields exist
+        return { ...INITIAL_USER, ...parsed };
       }
     } catch {
       // Fallback
     }
-    return normalizeUser(INITIAL_USER, dateKey());
+    return INITIAL_USER;
   });
-
-  // Always read/write the latest user through a ref so several updates in one
-  // tick never overwrite each other, and side effects (confetti, badge popups)
-  // stay out of React state updaters.
-  const userRef = useRef(user);
-  const commitUser = (next: UserProfile) => {
-    userRef.current = next;
-    setUser(next);
-  };
 
   const [activeTab, setActiveTab] = useState<NavigationTab>('tracks');
   const [currentTrackId, setCurrentTrackId] = useState<LanguageId>('python');
@@ -264,34 +242,145 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setActiveTab('sandbox');
   };
 
-  const announce = (r: AwardResult) => {
-    if (r.leveledUpTo) {
-      setLevelUpNotification(r.leveledUpTo);
-      triggerConfetti();
-    }
-    if (r.newBadgeIds.length > 0) {
-      const b = BADGES.find(x => x.id === r.newBadgeIds[0]);
+  const checkBadgeUnlocks = (updatedUser: UserProfile) => {
+    const unlockedNow = [...updatedUser.unlockedBadgeIds];
+    const totalSolved = Object.keys(updatedUser.solvedExercises).length;
+
+    // First Code
+    if (totalSolved >= 1 && !unlockedNow.includes('first-code')) {
+      unlockedNow.push('first-code');
+      const b = BADGES.find(x => x.id === 'first-code');
       if (b) setBadgeNotification(b);
     }
+
+    // Streaks
+    if (updatedUser.streak >= 3 && !unlockedNow.includes('streak-3')) {
+      unlockedNow.push('streak-3');
+      const b = BADGES.find(x => x.id === 'streak-3');
+      if (b) setBadgeNotification(b);
+    }
+    if (updatedUser.streak >= 7 && !unlockedNow.includes('streak-7')) {
+      unlockedNow.push('streak-7');
+      const b = BADGES.find(x => x.id === 'streak-7');
+      if (b) setBadgeNotification(b);
+    }
+
+    // Polyglot: check distinct languages solved
+    const solvedLanguages = new Set<string>();
+    for (const exId of Object.keys(updatedUser.solvedExercises)) {
+      const ex = ALL_EXERCISES.find(e => e.id === exId);
+      if (ex) solvedLanguages.add(ex.trackId);
+    }
+    if (solvedLanguages.size >= 2 && !unlockedNow.includes('polyglot')) {
+      unlockedNow.push('polyglot');
+      const b = BADGES.find(x => x.id === 'polyglot');
+      if (b) setBadgeNotification(b);
+    }
+
+    // XP Milestones
+    if (updatedUser.currentXp >= 500 && !unlockedNow.includes('xp-500')) {
+      unlockedNow.push('xp-500');
+      const b = BADGES.find(x => x.id === 'xp-500');
+      if (b) setBadgeNotification(b);
+    }
+    if (updatedUser.currentXp >= 1000 && !unlockedNow.includes('xp-1000')) {
+      unlockedNow.push('xp-1000');
+      const b = BADGES.find(x => x.id === 'xp-1000');
+      if (b) setBadgeNotification(b);
+    }
+
+    // SQL Sorcerer
+    const sqlExercises = COURSES.sql?.modules.flatMap(m => m.exercises) || [];
+    const sqlPassed = sqlExercises.every(e => updatedUser.solvedExercises[e.id]);
+    if (sqlPassed && sqlExercises.length > 0 && !unlockedNow.includes('sql-sorcerer')) {
+      unlockedNow.push('sql-sorcerer');
+      const b = BADGES.find(x => x.id === 'sql-sorcerer');
+      if (b) setBadgeNotification(b);
+    }
+
+    return unlockedNow;
   };
 
-  const addXp = (amount: number, countsForStreak = true) => {
-    const result = awardXp(userRef.current, amount, dateKey(), BADGE_CONTEXT, countsForStreak);
-    commitUser(result.user);
-    announce(result);
+  const calculateLevel = (totalXp: number): { level: number; nextLevelXp: number } => {
+    // 0-200 Lvl 1, 201-400 Lvl 2, 401-700 Lvl 3, 701-1100 Lvl 4, 1101-1600 Lvl 5, etc.
+    const thresholds = [0, 200, 450, 750, 1150, 1650, 2250, 3000, 4000, 5500];
+    let lvl = 1;
+    for (let i = 0; i < thresholds.length; i++) {
+      if (totalXp >= thresholds[i]) {
+        lvl = i + 1;
+      } else {
+        return { level: lvl, nextLevelXp: thresholds[i] };
+      }
+    }
+    return { level: lvl, nextLevelXp: thresholds[thresholds.length - 1] + 1500 };
+  };
+
+  const addXp = (amount: number, isStreakUpdate = true) => {
+    setUser(prev => {
+      const today = new Date().toISOString().split('T')[0];
+      const isNewActiveDay = prev.lastActiveDate !== today;
+      let newStreak = prev.streak;
+
+      if (isStreakUpdate && isNewActiveDay) {
+        const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+        if (prev.lastActiveDate === yesterday) {
+          newStreak = prev.streak + 1;
+        } else if (prev.streak === 0) {
+          newStreak = 1;
+        }
+      }
+
+      const longest = Math.max(prev.longestStreak, newStreak);
+      const newXp = prev.currentXp + amount;
+      const { level, nextLevelXp } = calculateLevel(newXp);
+
+      if (level > prev.level) {
+        setLevelUpNotification(level);
+        triggerConfetti();
+      }
+
+      // League calculation based on XP
+      let league = prev.league;
+      if (newXp >= 1200) league = 'Diamond';
+      else if (newXp >= 900) league = 'Platinum';
+      else if (newXp >= 600) league = 'Gold';
+      else if (newXp >= 300) league = 'Silver';
+
+      const updated: UserProfile = {
+        ...prev,
+        currentXp: newXp,
+        level,
+        nextLevelXp,
+        streak: newStreak,
+        longestStreak: longest,
+        lastActiveDate: today,
+        league
+      };
+
+      updated.unlockedBadgeIds = checkBadgeUnlocks(updated);
+      return updated;
+    });
   };
 
   const completeExercise = (exerciseId: string, submittedCode: string, xpEarned: number) => {
-    const prev = userRef.current;
-    const isAlreadySolved = Boolean(prev.solvedExercises[exerciseId]);
+    const isAlreadySolved = Boolean(user.solvedExercises[exerciseId]);
     const xpToAward = isAlreadySolved ? Math.round(xpEarned * 0.25) : xpEarned;
 
-    commitUser({
-      ...prev,
-      solvedExercises: {
+    setUser(prev => {
+      const updatedSolved = {
         ...prev.solvedExercises,
-        [exerciseId]: { passedAt: new Date().toISOString(), code: submittedCode }
-      }
+        [exerciseId]: {
+          passedAt: new Date().toISOString(),
+          code: submittedCode
+        }
+      };
+
+      const updatedUser: UserProfile = {
+        ...prev,
+        solvedExercises: updatedSolved
+      };
+
+      return updatedUser;
     });
 
     addXp(xpToAward, true);
@@ -299,50 +388,58 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const solveDailyChallenge = (submittedCode: string, xpEarned: number) => {
-    const today = dateKey();
-    const prev = userRef.current;
-    if (prev.dailyChallengeSolvedDate === today) return; // already rewarded today
-
+    const today = new Date().toISOString().split('T')[0];
     const todayChallenge = getTodayChallenge();
-    const unlocked = [...prev.unlockedBadgeIds];
-    if (!unlocked.includes('daily-hunter')) {
-      unlocked.push('daily-hunter');
-      const b = BADGES.find(x => x.id === 'daily-hunter');
-      if (b) setBadgeNotification(b);
-    }
 
-    commitUser({
-      ...prev,
-      dailyChallengeSolvedDate: today,
-      solvedExercises: {
+    setUser(prev => {
+      const updatedSolved = {
         ...prev.solvedExercises,
-        [todayChallenge.id]: { passedAt: new Date().toISOString(), code: submittedCode }
-      },
-      unlockedBadgeIds: unlocked
+        [todayChallenge.id]: {
+          passedAt: new Date().toISOString(),
+          code: submittedCode
+        }
+      };
+
+      const unlocked = [...prev.unlockedBadgeIds];
+      if (!unlocked.includes('daily-hunter')) {
+        unlocked.push('daily-hunter');
+        const b = BADGES.find(x => x.id === 'daily-hunter');
+        if (b) setBadgeNotification(b);
+      }
+
+      return {
+        ...prev,
+        dailyChallengeSolvedDate: today,
+        solvedExercises: updatedSolved,
+        unlockedBadgeIds: unlocked
+      };
     });
 
     addXp(xpEarned, true);
     triggerConfetti();
   };
 
-  // Freezes are now spent automatically when a day is missed (see advanceStreak).
-  // This manual version is kept so existing UI code keeps working.
   const useStreakFreeze = (): boolean => {
-    const prev = userRef.current;
-    if (prev.streakFreezes <= 0) return false;
-    commitUser({ ...prev, streakFreezes: prev.streakFreezes - 1 });
+    if (user.streakFreezes <= 0) return false;
+    setUser(prev => ({
+      ...prev,
+      streakFreezes: prev.streakFreezes - 1
+    }));
     return true;
   };
 
   const buyStreakFreeze = (xpCost: number): boolean => {
-    const next = purchaseStreakFreeze(userRef.current, xpCost);
-    if (!next) return false;
-    commitUser(next);
+    if (user.currentXp < xpCost) return false;
+    setUser(prev => ({
+      ...prev,
+      currentXp: prev.currentXp - xpCost,
+      streakFreezes: prev.streakFreezes + 1
+    }));
     return true;
   };
 
   const updateUserProfile = (updates: Partial<UserProfile>) => {
-    commitUser({ ...userRef.current, ...updates });
+    setUser(prev => ({ ...prev, ...updates }));
   };
 
   // Forum actions
@@ -370,28 +467,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     // Check project architect badge
     if (postData.category === 'projects' || postData.isCollaborative) {
-      const p = userRef.current;
-      if (!p.unlockedBadgeIds.includes('project-architect')) {
-        commitUser({ ...p, unlockedBadgeIds: [...p.unlockedBadgeIds, 'project-architect'] });
-        const b = BADGES.find(x => x.id === 'project-architect');
-        if (b) setBadgeNotification(b);
-      }
+      setUser(prev => {
+        if (!prev.unlockedBadgeIds.includes('project-architect')) {
+          const b = BADGES.find(x => x.id === 'project-architect');
+          if (b) setBadgeNotification(b);
+          return {
+            ...prev,
+            unlockedBadgeIds: [...prev.unlockedBadgeIds, 'project-architect']
+          };
+        }
+        return prev;
+      });
     }
   };
 
   const upvoteForumPost = (postId: string) => {
-    const prevUser = userRef.current;
-    const already = (prevUser.upvotedPostIds ?? []).includes(postId);
-    commitUser({
-      ...prevUser,
-      upvotedPostIds: already
-        ? (prevUser.upvotedPostIds ?? []).filter(id => id !== postId)
-        : [...(prevUser.upvotedPostIds ?? []), postId]
-    });
     setForumPosts(prev =>
-      prev.map(p =>
-        p.id === postId ? { ...p, upvotes: Math.max(0, p.upvotes + (already ? -1 : 1)) } : p
-      )
+      prev.map(p => (p.id === postId ? { ...p, upvotes: p.upvotes + 1 } : p))
     );
   };
 
@@ -443,13 +535,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const toggleStarProject = (postId: string) => {
-    const prev = userRef.current;
-    const isStarred = prev.starredProjectIds.includes(postId);
-    commitUser({
-      ...prev,
-      starredProjectIds: isStarred
-        ? prev.starredProjectIds.filter(id => id !== postId)
-        : [...prev.starredProjectIds, postId]
+    setUser(prev => {
+      const isStarred = prev.starredProjectIds.includes(postId);
+      return {
+        ...prev,
+        starredProjectIds: isStarred
+          ? prev.starredProjectIds.filter(id => id !== postId)
+          : [...prev.starredProjectIds, postId]
+      };
     });
   };
 
@@ -464,8 +557,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     displayName: user.displayName,
     avatarSeed: user.avatarSeed,
     avatarBg: user.avatarBg,
-    weeklyXp: user.weeklyXp ?? 0,
-    totalXp: user.totalXpEarned ?? user.currentXp,
+    weeklyXp: user.currentXp,
+    totalXp: user.currentXp + 1500,
     streak: user.streak,
     league: user.league,
     topLanguage: currentTrackId,

@@ -1,7 +1,6 @@
 import React from 'react';
 import { Flame, ShieldAlert, CheckCircle2, Calendar, Award, Zap, X } from 'lucide-react';
 import { useApp } from '../context/AppContext';
-import { spendableXp } from '../utils/progress';
 
 export const StreakModal: React.FC = () => {
   const { 
@@ -145,9 +144,9 @@ export const StreakModal: React.FC = () => {
             </div>
             <button
               onClick={handleBuyFreeze}
-              disabled={spendableXp(user) < 150}
+              disabled={user.currentXp < 150}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold font-mono transition-all shrink-0 ${
-                spendableXp(user) >= 150 
+                user.currentXp >= 150 
                   ? 'bg-cyan-500 hover:bg-cyan-400 text-slate-950 shadow-md shadow-cyan-500/20 active:scale-95' 
                   : 'bg-slate-800 text-slate-500 cursor-not-allowed'
               }`}
