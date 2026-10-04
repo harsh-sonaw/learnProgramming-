@@ -46,6 +46,15 @@ export const CodingWorkspace: React.FC = () => {
   const [activeResultTab, setActiveResultTab] = useState<'tests' | 'console'>('tests');
   const [showHintIndex, setShowHintIndex] = useState<number>(-1);
   const [failedRuns, setFailedRuns] = useState(0);
+  const [isDesktop, setIsDesktop] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches
+  );
+  useEffect(() => {
+    const m = window.matchMedia('(min-width: 1024px)');
+    const f = () => setIsDesktop(m.matches);
+    m.addEventListener('change', f);
+    return () => m.removeEventListener('change', f);
+  }, []);
   const [fontSize, setFontSize] = useState<'sm' | 'base' | 'lg'>('sm');
   const [copied, setCopied] = useState(false);
   const [submissionSuccess, setSubmissionSuccess] = useState(false);
@@ -175,7 +184,7 @@ export const CodingWorkspace: React.FC = () => {
   const lineCount = Math.max(code.split('\n').length, 14);
 
   return (
-    <div className="h-[calc(100vh-4.1rem)] flex flex-col bg-slate-950 text-slate-100 overflow-hidden">
+    <div className="min-h-[calc(100vh-4.1rem)] lg:h-[calc(100vh-4.1rem)] flex flex-col bg-slate-950 text-slate-100 lg:overflow-hidden">
       {/* Top Breadcrumb & Exercise Switcher */}
       <div className="h-11 px-4 border-b border-slate-800 bg-slate-900/90 flex items-center justify-between gap-4 shrink-0 text-xs">
         <div className="flex items-center gap-2">
@@ -196,6 +205,13 @@ export const CodingWorkspace: React.FC = () => {
           <span className="font-mono text-amber-400 font-semibold bg-amber-950/40 border border-amber-800/40 px-2 py-0.5 rounded text-[11px]">
             +{exercise.xpReward} XP
           </span>
+          <button
+            onClick={() => document.getElementById('help-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+            className="flex items-center gap-1 text-amber-400 hover:text-amber-300 text-[11px] font-mono font-semibold"
+            title="Jump to hints and help"
+          >
+            <Lightbulb className="w-3.5 h-3.5" /> Hints
+          </button>
           {isAlreadySolved && (
             <span className="flex items-center gap-1 text-emerald-400 text-[11px] font-mono font-medium">
               <CheckCircle2 className="w-3.5 h-3.5" /> Solved
@@ -215,9 +231,9 @@ export const CodingWorkspace: React.FC = () => {
       </div>
 
       {/* Main Split Body: Left Instructions | Right Code Editor & Tests */}
-      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
+      <div className="flex-1 flex flex-col lg:flex-row lg:overflow-hidden">
         {/* Left Problem Description Panel */}
-        <div className="w-full lg:w-5/12 border-b lg:border-b-0 lg:border-r border-slate-800 bg-slate-900/40 overflow-y-auto p-5 space-y-6">
+        <div className="w-full lg:w-5/12 border-b lg:border-b-0 lg:border-r border-slate-800 bg-slate-900/40 lg:overflow-y-auto p-5 space-y-6">
           <div>
             <div className="flex items-center gap-2 mb-1.5">
               <span className="text-[11px] font-mono font-semibold text-slate-400 uppercase">
@@ -285,11 +301,36 @@ export const CodingWorkspace: React.FC = () => {
             </div>
           )}
 
-          <HelpPanel exercise={exercise} runResults={runResults} failedRuns={failedRuns} />
+          {/* Tests the solution must pass */}
+          {exercise.testCases.filter(t => !t.isHidden).length > 0 && (
+            <div>
+              <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-slate-400 mb-2">
+                Your code must pass these tests
+              </h3>
+              <div className="space-y-2">
+                {exercise.testCases.filter(t => !t.isHidden).map(t => (
+                  <div key={t.id} className="rounded-lg border border-slate-800 bg-slate-950/60 p-3 text-xs font-mono space-y-0.5">
+                    <div className="text-slate-300 font-sans font-medium">{t.description}</div>
+                    <div className="text-slate-500">Input: <span className="text-slate-200 break-all">{t.inputDescription}</span></div>
+                    <div className="text-slate-500">Expected: <span className="text-emerald-300 break-all">{t.expectedOutputDescription}</span></div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {isDesktop && (
+            <div id="help-section">
+              <HelpPanel exercise={exercise} runResults={runResults} failedRuns={failedRuns} />
+            </div>
+          )}
         </div>
 
         {/* Right Code Editor & Execution Panel */}
-        <div className="w-full lg:w-7/12 flex flex-col h-full bg-slate-950">
+        <div className="lg:hidden px-5 py-2 bg-slate-900 border-y border-slate-800 text-xs font-mono font-bold uppercase tracking-wider text-emerald-400">
+          Write your code
+        </div>
+        <div className="w-full lg:w-7/12 flex flex-col h-[36rem] lg:h-full bg-slate-950">
           {/* Editor Header Toolbar */}
           <div className="h-10 px-4 bg-slate-900 border-b border-slate-800 flex items-center justify-between text-xs shrink-0">
             <div className="flex items-center gap-2">
@@ -504,6 +545,13 @@ export const CodingWorkspace: React.FC = () => {
             )}
           </div>
         </div>
+
+        {!isDesktop && (
+          <div id="help-section" className="p-5 border-t border-slate-800 bg-slate-900/40">
+            <div className="mb-4 text-xs font-mono font-bold uppercase tracking-wider text-amber-400">Need help?</div>
+            <HelpPanel exercise={exercise} runResults={runResults} failedRuns={failedRuns} />
+          </div>
+        )}
       </div>
     </div>
   );
