@@ -18,6 +18,7 @@ import { useApp } from '../context/AppContext';
 import { ALL_EXERCISES, COURSES } from '../data/courses';
 import { runCode } from '../utils/codeRunner';
 import { RunResults } from '../types';
+import { HelpPanel } from './HelpPanel';
 
 export const CodingWorkspace: React.FC = () => {
   const { 
@@ -44,6 +45,7 @@ export const CodingWorkspace: React.FC = () => {
   const [runResults, setRunResults] = useState<RunResults | null>(null);
   const [activeResultTab, setActiveResultTab] = useState<'tests' | 'console'>('tests');
   const [showHintIndex, setShowHintIndex] = useState<number>(-1);
+  const [failedRuns, setFailedRuns] = useState(0);
   const [fontSize, setFontSize] = useState<'sm' | 'base' | 'lg'>('sm');
   const [copied, setCopied] = useState(false);
   const [submissionSuccess, setSubmissionSuccess] = useState(false);
@@ -59,6 +61,7 @@ export const CodingWorkspace: React.FC = () => {
     }
     setRunResults(null);
     setShowHintIndex(-1);
+    setFailedRuns(0);
     setSubmissionSuccess(false);
   }, [exercise.id]);
 
@@ -110,6 +113,7 @@ export const CodingWorkspace: React.FC = () => {
     try {
       const results = await runCode(exercise.trackId, code, exercise.testCases);
       setRunResults(results);
+      if (!results.allPassed) setFailedRuns(n => n + 1);
       if (results.consoleOutput.length > 0 && results.results.length === 0) {
         setActiveResultTab('console');
       } else {
@@ -137,6 +141,7 @@ export const CodingWorkspace: React.FC = () => {
     try {
       const results = await runCode(exercise.trackId, code, exercise.testCases);
       setRunResults(results);
+      if (!results.allPassed) setFailedRuns(n => n + 1);
       setActiveResultTab('tests');
 
       if (results.allPassed) {
@@ -280,34 +285,7 @@ export const CodingWorkspace: React.FC = () => {
             </div>
           )}
 
-          {/* Progressive Hints Accordion */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                <Lightbulb className="w-3.5 h-3.5 text-amber-400" />
-                Hints & Guidance
-              </h3>
-            </div>
-            <div className="space-y-2">
-              {exercise.hints.map((hint, idx) => {
-                const isRevealed = showHintIndex >= idx;
-                return (
-                  <div key={idx} className="rounded-lg border border-slate-800 bg-slate-950/50 p-3 text-xs">
-                    {isRevealed ? (
-                      <p className="text-amber-200/90 leading-relaxed font-sans">{hint}</p>
-                    ) : (
-                      <button
-                        onClick={() => setShowHintIndex(idx)}
-                        className="text-amber-400 hover:text-amber-300 font-medium flex items-center gap-1"
-                      >
-                        Reveal Hint #{idx + 1}
-                      </button>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+          <HelpPanel exercise={exercise} runResults={runResults} failedRuns={failedRuns} />
         </div>
 
         {/* Right Code Editor & Execution Panel */}

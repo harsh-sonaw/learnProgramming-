@@ -117,6 +117,16 @@ export interface UserProfile {
   unlockedBadgeIds: string[];
   starredProjectIds: string[];
   dailyChallengeSolvedDate?: string;
+  /** Lifetime XP ever earned (never decreases). Drives level & league. */
+  totalXpEarned?: number;
+  /** XP spent in the shop (e.g. streak freezes). Spendable = currentXp - spentXp. */
+  spentXp?: number;
+  /** XP earned since weekStart (resets every Monday). Drives the weekly leaderboard. */
+  weeklyXp?: number;
+  /** Local YYYY-MM-DD of the Monday that weeklyXp belongs to. */
+  weekStart?: string;
+  /** Forum posts this user has upvoted (one vote per post). */
+  upvotedPostIds?: string[];
 }
 
 export interface ActivityDay {
