@@ -1,254 +1,119 @@
 import React from 'react';
-import { 
-  Terminal, 
-  Code2, 
-  Layers, 
-  Cpu, 
-  Database, 
-  CheckCircle2, 
-  ArrowRight, 
-  Sparkles, 
-  Award,
-  PlayCircle
-} from 'lucide-react';
+import { ArrowRight, Check, CheckCircle2, Terminal } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { LANGUAGES, COURSES } from '../data/courses';
 import { LanguageId } from '../types';
 
 export const TracksView: React.FC = () => {
-  const { 
-    currentTrackId, 
-    setCurrentTrackId, 
-    selectExercise, 
-    user,
-    setActiveTab 
-  } = useApp();
-
+  const { currentTrackId, setCurrentTrackId, selectExercise, user, setActiveTab } = useApp();
   const activeTrack = COURSES[currentTrackId];
-  const allTrackExercises = activeTrack?.modules.flatMap(m => m.exercises) || [];
-  const solvedCount = allTrackExercises.filter(e => user.solvedExercises[e.id]).length;
-  const progressPercent = allTrackExercises.length > 0 
-    ? Math.round((solvedCount / allTrackExercises.length) * 100) 
-    : 0;
-
-  const getLanguageIcon = (id: LanguageId, className = "w-5 h-5") => {
-    switch (id) {
-      case 'python': return <Terminal className={className} />;
-      case 'javascript': return <Code2 className={className} />;
-      case 'typescript': return <Layers className={className} />;
-      case 'go': return <Cpu className={className} />;
-      case 'sql': return <Database className={className} />;
-      default: return <Code2 className={className} />;
-    }
-  };
-
-  const getDifficultyColor = (diff: string) => {
-    switch (diff) {
-      case 'Beginner': return 'text-emerald-400';
-      case 'Intermediate': return 'text-amber-400';
-      case 'Advanced': return 'text-rose-400';
-      default: return 'text-slate-400';
-    }
-  };
-
-  // Find next unsolved exercise to recommend
-  const nextUnsolved = allTrackExercises.find(e => !user.solvedExercises[e.id]);
+  const language = LANGUAGES.find(lang => lang.id === currentTrackId)!;
+  const exercises = activeTrack.modules.flatMap(module => module.exercises);
+  const solvedCount = exercises.filter(exercise => user.solvedExercises[exercise.id]).length;
+  const percent = exercises.length ? Math.round(solvedCount / exercises.length * 100) : 0;
+  const nextExercise = exercises.find(exercise => !user.solvedExercises[exercise.id]);
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-      {/* Top Language Track Tabs */}
-      <div>
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-xs font-mono uppercase tracking-wider text-slate-400">
-            Select Programming Track
-          </h2>
-          <span className="text-xs font-mono text-slate-500">
-            {Object.keys(user.solvedExercises).length} exercises solved total
-          </span>
+    <div className="mx-auto max-w-7xl px-5 py-10 sm:px-8 sm:py-14">
+      <div className="mb-10 flex flex-wrap items-end justify-between gap-4 border-b border-slate-800 pb-8">
+        <div>
+          <p className="mb-3 text-xs font-medium uppercase tracking-widest text-slate-400">Your learning workspace</p>
+          <h1 className="text-3xl font-medium tracking-tight text-white sm:text-4xl">A little practice. Real progress.</h1>
+          <p className="mt-3 text-sm leading-relaxed text-slate-400">Pick a language, work through the exercises, and learn by writing code.</p>
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-          {LANGUAGES.map(lang => {
-            const isSelected = currentTrackId === lang.id;
-            const langCourse = COURSES[lang.id];
-            const langExs = langCourse?.modules.flatMap(m => m.exercises) || [];
-            const solved = langExs.filter(e => user.solvedExercises[e.id]).length;
-            const pct = langExs.length > 0 ? Math.round((solved / langExs.length) * 100) : 0;
-
-            return (
-              <button
-                key={lang.id}
-                onClick={() => setCurrentTrackId(lang.id)}
-                className={`flex flex-col p-3.5 rounded-xl border text-left transition-all relative overflow-hidden group ${
-                  isSelected 
-                    ? 'bg-slate-900 border-emerald-500/60 shadow-lg shadow-emerald-500/5 ring-1 ring-emerald-500/40' 
-                    : 'bg-slate-950/60 border-slate-800/80 hover:bg-slate-900/60 hover:border-slate-700'
-                }`}
-              >
-                <div className="flex items-center justify-between gap-2 mb-2">
-                  <div className={`p-2 rounded-lg bg-slate-800 text-slate-200 group-hover:scale-105 transition-transform ${isSelected ? 'text-emerald-400 bg-emerald-950/40' : ''}`}>
-                    {getLanguageIcon(lang.id, "w-4 h-4")}
-                  </div>
-                  <span className="text-[11px] font-mono text-slate-400">
-                    {solved}/{langExs.length}
-                  </span>
-                </div>
-                <h3 className="text-sm font-bold text-white tracking-tight">{lang.name}</h3>
-                <span className="text-[11px] text-slate-400 truncate mt-0.5">{lang.popularFor}</span>
-
-                {/* Micro progress bar */}
-                <div className="w-full h-1 bg-slate-800 rounded-full mt-3 overflow-hidden">
-                  <div 
-                    className="h-full bg-emerald-400 rounded-full transition-all duration-300"
-                    style={{ width: `${pct}%` }}
-                  />
-                </div>
-              </button>
-            );
-          })}
-        </div>
+        <span className="text-sm text-slate-400"><span className="font-mono text-slate-200">{Object.keys(user.solvedExercises).length}</span> exercises completed</span>
       </div>
 
-      {/* Selected Track Hero Banner */}
-      <div className="relative p-6 sm:p-8 rounded-2xl bg-gradient-to-r from-slate-900 via-slate-900/90 to-slate-950 border border-slate-800 overflow-hidden shadow-xl">
-        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-          <div className="max-w-2xl space-y-2">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400">
-                {getLanguageIcon(currentTrackId, "w-6 h-6")}
-              </div>
-              <div>
-                <h1 className="text-2xl font-extrabold text-white tracking-tight">{activeTrack.name}</h1>
-                <p className="text-xs font-mono text-emerald-400">{activeTrack.tagline}</p>
-              </div>
-            </div>
-            <p className="text-sm text-slate-300 leading-relaxed pt-1">
-              {activeTrack.description}
-            </p>
+      <div className="grid gap-10 lg:grid-cols-[220px_minmax(0,1fr)] lg:gap-14">
+        <aside>
+          <h2 className="mb-4 text-xs font-medium uppercase tracking-widest text-slate-500"><label htmlFor="mobile-track">Learning tracks</label></h2>
+          <select id="mobile-track" value={currentTrackId} onChange={event => setCurrentTrackId(event.target.value as LanguageId)} className="min-h-12 w-full rounded-md border border-slate-700 bg-slate-900 px-3 text-sm text-slate-200 lg:hidden">
+            {LANGUAGES.map(lang => <option key={lang.id} value={lang.id}>{lang.name}</option>)}
+          </select>
+          <nav aria-label="Learning tracks" className="hidden gap-1 lg:grid">
+            {LANGUAGES.map(lang => {
+              const selected = currentTrackId === lang.id;
+              const trackExercises = COURSES[lang.id].modules.flatMap(module => module.exercises);
+              const solved = trackExercises.filter(exercise => user.solvedExercises[exercise.id]).length;
+              return (
+                <button key={lang.id} onClick={() => setCurrentTrackId(lang.id)} aria-current={selected ? 'true' : undefined}
+                  className={`flex min-h-14 items-center justify-between gap-2 rounded-md px-3 py-3 text-left transition-colors ${selected ? 'bg-slate-900 text-white' : 'text-slate-400 hover:bg-slate-900/60 hover:text-slate-200'}`}>
+                  <span className="text-sm font-medium">{lang.name}</span>
+                  <span className={`font-mono text-xs ${selected ? 'text-emerald-400' : 'text-slate-500'}`}>{solved}/{trackExercises.length}</span>
+                </button>
+              );
+            })}
+          </nav>
+          <div className="mt-8 hidden border-t border-slate-800 pt-6 lg:block">
+            <Terminal className="mb-3 h-5 w-5 text-slate-500" aria-hidden="true" />
+            <h3 className="text-sm font-medium text-slate-200">Room to experiment.</h3>
+            <p className="mt-2 text-xs leading-6 text-slate-400">Try an idea or revisit a concept in the playground.</p>
+            <button onClick={() => setActiveTab('sandbox')} className="mt-4 inline-flex items-center gap-2 text-xs font-medium text-emerald-400 hover:text-emerald-300">Open playground <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" /></button>
           </div>
+        </aside>
 
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 shrink-0">
-            <div className="p-4 rounded-xl bg-slate-950/80 border border-slate-800 flex items-center gap-4">
-              <div className="relative w-12 h-12 flex items-center justify-center">
-                <svg className="w-12 h-12 -rotate-90">
-                  <circle cx="24" cy="24" r="20" stroke="currentColor" strokeWidth="4" className="text-slate-800" fill="transparent"/>
-                  <circle cx="24" cy="24" r="20" stroke="currentColor" strokeWidth="4" className="text-emerald-400" fill="transparent"
-                    strokeDasharray={125.6}
-                    strokeDashoffset={125.6 - (125.6 * progressPercent) / 100}
-                    strokeLinecap="round"
-                  />
-                </svg>
-                <span className="absolute text-xs font-bold font-mono text-white">{progressPercent}%</span>
-              </div>
-              <div>
-                <span className="text-xs text-slate-400 block font-mono">Track Mastery</span>
-                <span className="text-sm font-bold text-white">{solvedCount} of {allTrackExercises.length} solved</span>
-              </div>
+        <div className="min-w-0">
+          <section aria-labelledby="track-heading" className="mb-10">
+            <div className="mb-5 flex items-center gap-3 text-xs text-slate-400">
+              <span className="rounded border border-slate-700 px-2 py-1 font-mono text-emerald-400">{language.shortName}</span>
+              <span>{activeTrack.modules.length} modules</span><span aria-hidden="true">/</span><span>{exercises.length} exercises</span>
             </div>
-
-            {nextUnsolved ? (
-              <button
-                onClick={() => selectExercise(nextUnsolved.id)}
-                className="px-5 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 active:scale-95 transition-all"
-              >
-                <PlayCircle className="w-4 h-4" />
-                <span>Continue: {nextUnsolved.title}</span>
-              </button>
-            ) : (
-              <div className="px-5 py-3 rounded-xl bg-emerald-950/40 border border-emerald-800/40 text-emerald-300 font-bold text-sm flex items-center justify-center gap-2">
-                <CheckCircle2 className="w-5 h-5 text-emerald-400" />
-                <span>Track Completed!</span>
+            <h2 id="track-heading" className="text-2xl font-medium tracking-tight text-white sm:text-3xl">{language.name}</h2>
+            <p className="mt-3 max-w-xl text-sm leading-7 text-slate-400">{activeTrack.description}</p>
+            <div className="mt-6 flex flex-col gap-5 rounded-lg border border-slate-800 bg-slate-900/40 p-5 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0 flex-1 sm:max-w-xs">
+                <div className="mb-3 flex items-center justify-between gap-5 text-xs"><span className="text-slate-300">{solvedCount} of {exercises.length} completed</span><span className="font-mono text-slate-400">{percent}%</span></div>
+                <progress aria-label={`${language.name} track progress`} value={solvedCount} max={exercises.length} className="track-progress block h-1 w-full" />
               </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Curriculum Modules & Interactive Exercises */}
-      <div className="space-y-6">
-        <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-          <h2 className="text-lg font-bold text-white tracking-tight flex items-center gap-2">
-            Curriculum Roadmap & Challenges
-          </h2>
-          <span className="text-xs text-slate-400 font-mono">
-            {activeTrack.modules.length} Module(s)
-          </span>
-        </div>
-
-        {activeTrack.modules.map((mod, modIdx) => (
-          <div key={mod.id} className="rounded-xl border border-slate-800 bg-slate-900/60 overflow-hidden">
-            <div className="p-4 sm:p-5 bg-slate-900/90 border-b border-slate-800/80 flex items-center justify-between">
-              <div>
-                <span className="text-[11px] font-mono uppercase tracking-wider text-emerald-400 font-semibold">
-                  Module {modIdx + 1}
-                </span>
-                <h3 className="text-base font-bold text-white mt-0.5">{mod.title}</h3>
-                <p className="text-xs text-slate-400 mt-0.5">{mod.description}</p>
-              </div>
-              <span className="text-xs font-mono text-slate-400">
-                {mod.exercises.filter(e => user.solvedExercises[e.id]).length} / {mod.exercises.length} Completed
-              </span>
+              {nextExercise ? (
+                <button onClick={() => selectExercise(nextExercise.id)} className="inline-flex min-h-11 shrink-0 items-center justify-center gap-3 rounded-md bg-emerald-400 px-5 py-3 text-sm font-semibold text-slate-950 transition-colors hover:bg-emerald-300">
+                  {solvedCount ? 'Continue learning' : 'Start learning'}<ArrowRight className="h-4 w-4" aria-hidden="true" />
+                </button>
+              ) : (
+                <span className="flex items-center gap-2 text-sm text-emerald-400"><CheckCircle2 className="h-4 w-4" aria-hidden="true" />Track complete</span>
+              )}
             </div>
+            {nextExercise && <p className="mt-3 text-xs leading-5 text-slate-500">Up next: <span className="text-slate-400">{nextExercise.title}</span></p>}
+          </section>
 
-            <div className="divide-y divide-slate-800/60">
-              {mod.exercises.map((exercise, exIdx) => {
-                const isSolved = Boolean(user.solvedExercises[exercise.id]);
-
-                return (
-                  <div
-                    key={exercise.id}
-                    className="p-4 sm:p-5 hover:bg-slate-800/30 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4"
-                  >
-                    <div className="flex items-start gap-3.5">
-                      <div className="mt-0.5">
-                        {isSolved ? (
-                          <div className="w-7 h-7 rounded-lg bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400">
-                            <CheckCircle2 className="w-4 h-4" />
-                          </div>
-                        ) : (
-                          <div className="w-7 h-7 rounded-lg bg-slate-800 border border-slate-700/80 flex items-center justify-center text-xs font-mono text-slate-400 font-bold">
-                            {exIdx + 1}
-                          </div>
-                        )}
-                      </div>
-
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <h4 className="text-sm font-semibold text-white hover:text-emerald-400 transition-colors cursor-pointer" onClick={() => selectExercise(exercise.id)}>
-                            {exercise.title}
-                          </h4>
-                          <span className={`text-[11px] font-mono ${getDifficultyColor(exercise.difficulty)}`}>
-                            {exercise.difficulty}
-                          </span>
-                        </div>
-                        <p className="text-xs text-slate-400 mt-1 line-clamp-1">
-                          {exercise.description}
-                        </p>
-                      </div>
+          <section aria-labelledby="curriculum-heading">
+            <div className="mb-2 flex items-center justify-between border-b border-slate-800 pb-4">
+              <h2 id="curriculum-heading" className="text-sm font-semibold text-slate-200">Course curriculum</h2>
+              <span className="text-xs text-slate-500">At your own pace</span>
+            </div>
+            {activeTrack.modules.map((module, moduleIndex) => (
+              <section key={module.id} aria-labelledby={`${module.id}-heading`} className="pt-7">
+                <div className="mb-4 flex items-start justify-between gap-4">
+                  <div className="flex gap-3">
+                    <span className="pt-0.5 font-mono text-xs text-slate-500">{String(moduleIndex + 1).padStart(2, '0')}</span>
+                    <div>
+                      <h3 id={`${module.id}-heading`} className="text-sm font-medium text-slate-100">{module.title}</h3>
+                      <p className="mt-1.5 text-xs leading-5 text-slate-500">{module.description}</p>
                     </div>
-
-                    <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0">
-                      <span className="text-xs font-mono text-amber-400 font-semibold bg-amber-950/30 border border-amber-800/40 px-2 py-1 rounded">
-                        +{exercise.xpReward} XP
-                      </span>
-
-                      <button
-                        onClick={() => selectExercise(exercise.id)}
-                        className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all ${
-                          isSolved 
-                            ? 'bg-slate-800 hover:bg-slate-700 text-slate-200' 
-                            : 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-md shadow-emerald-500/10 active:scale-95'
-                        }`}
-                      >
-                        <span>{isSolved ? 'Review' : 'Solve'}</span>
-                        <ArrowRight className="w-3.5 h-3.5" />
+                  </div>
+                  <span className="shrink-0 font-mono text-xs text-slate-500">{module.exercises.filter(exercise => user.solvedExercises[exercise.id]).length}/{module.exercises.length}</span>
+                </div>
+                <div className="divide-y divide-slate-800 rounded-md border border-slate-800">
+                  {module.exercises.map((exercise, index) => {
+                    const solved = Boolean(user.solvedExercises[exercise.id]);
+                    return (
+                      <button key={exercise.id} onClick={() => selectExercise(exercise.id)} className="group flex w-full items-center gap-3 px-4 py-4 text-left transition-colors hover:bg-slate-900 sm:gap-4 sm:px-5">
+                        <span className={`flex h-6 w-6 shrink-0 items-center justify-center font-mono text-xs ${solved ? 'text-emerald-400' : 'text-slate-500'}`} aria-label={solved ? 'Completed' : undefined}>{solved ? <Check className="h-4 w-4" aria-hidden="true" /> : String(index + 1).padStart(2, '0')}</span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block text-sm leading-6 text-slate-200 group-hover:text-white">{exercise.title}</span>
+                          <span className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500"><span>{exercise.difficulty}</span><span>{exercise.xpReward} XP</span>{solved && <span className="text-emerald-400">Completed</span>}</span>
+                        </span>
+                        <span className="hidden text-xs text-slate-400 sm:inline">{solved ? 'Review' : 'Solve'}</span>
+                        <ArrowRight className="h-4 w-4 shrink-0 text-slate-500 group-hover:text-emerald-400" aria-hidden="true" />
                       </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        ))}
+                    );
+                  })}
+                </div>
+              </section>
+            ))}
+          </section>
+          <p className="mt-10 border-t border-slate-800 pt-5 text-xs leading-6 text-slate-500">Your progress is saved in this browser. Come back whenever you’re ready.</p>
+        </div>
       </div>
     </div>
   );
