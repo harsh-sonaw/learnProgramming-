@@ -76,6 +76,14 @@ Keep API keys on the server. Anything prefixed `VITE_` is public.
 - `main.tsx` logs unhandled errors and promise rejections through `lib/logger.ts`.
 - Failed saves are logged, not swallowed; load failures show a banner in the app.
 
+## Navigation and the Back button
+
+Screens are store state, not pages, so `store/navigationSync.ts` mirrors them into the browser
+history with hash URLs (`core/routing.ts`): `#/learn`, `#/tests`, `#/daily`, `#/playground`,
+`#/leaderboard`, `#/community`, `#/profile` and `#/learn/exercise/<id>`. Changing screen pushes a
+history entry, so Back goes to the previous screen; refreshing or opening a link restores the
+screen. Hashes work on any static host with no server rewrite rules.
+
 ## Language tests
 
 `features/test/` has two sections per language:

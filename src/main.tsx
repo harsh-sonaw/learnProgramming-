@@ -1,7 +1,7 @@
 import { createRoot } from 'react-dom/client';
 import App from './app/App';
 import { createLogger } from './lib/logger';
-import { initializeStore } from './store';
+import { initNavigationSync, initializeStore } from './store';
 import './index.css';
 
 const log = createLogger('app');
@@ -16,5 +16,6 @@ window.addEventListener('error', (event) => {
 const container = document.getElementById('root');
 if (!container) throw new Error('Root element #root was not found in index.html');
 
+initNavigationSync(); // before the first render so a #/... link opens the right screen
 void initializeStore();
 createRoot(container).render(<App />);
