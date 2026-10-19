@@ -187,3 +187,12 @@ export interface ForumPost {
   isCollaborative?: boolean;
   lookingForCollaborators?: boolean;
 }
+
+export type NavigationTab =
+  | 'tracks'
+  | 'workspace'
+  | 'daily'
+  | 'sandbox'
+  | 'leaderboards'
+  | 'community'
+  | 'profile';
