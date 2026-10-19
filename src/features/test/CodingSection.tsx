@@ -25,7 +25,7 @@ export const CodingSection: React.FC<{ language: LanguageId }> = ({ language }) 
 
   return (
     <div className="space-y-5">
-      <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-5 space-y-3">
+      <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-5 space-y-3">
         <div className="flex items-center justify-between gap-3">
           <div>
             <h3 className="text-lg font-bold text-white">Coding challenges</h3>
@@ -47,7 +47,7 @@ export const CodingSection: React.FC<{ language: LanguageId }> = ({ language }) 
           <button
             type="button"
             onClick={() => selectExercise(nextUnsolved.id)}
-            className="px-5 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-sm flex items-center gap-2 active:scale-95 transition-all"
+            className="px-5 py-3 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-sm flex items-center gap-2 active:scale-95 transition-all"
           >
             <PlayCircle className="w-4 h-4" /> Continue: {nextUnsolved.title}
           </button>
@@ -55,7 +55,7 @@ export const CodingSection: React.FC<{ language: LanguageId }> = ({ language }) 
       </div>
 
       {modules.map((mod) => (
-        <div key={mod.id} className="rounded-xl border border-slate-800 bg-slate-900/60 overflow-hidden">
+        <div key={mod.id} className="rounded-lg border border-slate-800 bg-slate-900/60 overflow-hidden">
           <div className="px-4 py-3 bg-slate-900/90 border-b border-slate-800/80">
             <h4 className="text-sm font-bold text-white">{mod.title}</h4>
           </div>

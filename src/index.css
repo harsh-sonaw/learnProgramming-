@@ -1,14 +1,58 @@
 @import "tailwindcss";
 
+@theme {
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+  --color-slate-50: #fafafa;
+  --color-slate-100: #f0f0ee;
+  --color-slate-200: #dededb;
+  --color-slate-300: #c4c5c0;
+  --color-slate-400: #a0a39c;
+  --color-slate-500: #898d85;
+  --color-slate-600: #63685f;
+  --color-slate-700: #42483f;
+  --color-slate-800: #2c312c;
+  --color-slate-900: #1b201c;
+  --color-slate-950: #111612;
+  --color-emerald-300: #c4dfad;
+  --color-emerald-400: #b0d295;
+  --color-emerald-500: #91b674;
+  --color-emerald-600: #517a3b;
+}
+
 @layer base {
   body {
     font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-    background-color: #020617;
-    color: #f8fafc;
+    background-color: var(--color-slate-950);
+    color: var(--color-slate-100);
   }
 
   code, pre, .font-mono {
     font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  }
+
+  button { cursor: pointer; }
+  button:disabled { cursor: not-allowed; }
+  :focus-visible { outline: 2px solid var(--color-emerald-400); outline-offset: 4px; }
+}
+
+.track-progress {
+  appearance: none;
+  overflow: hidden;
+  border: 0;
+  border-radius: 2px;
+  background: var(--color-slate-800);
+}
+.track-progress::-webkit-progress-bar { background: var(--color-slate-800); }
+.track-progress::-webkit-progress-value { background: var(--color-emerald-400); }
+.track-progress::-moz-progress-bar { background: var(--color-emerald-400); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
 

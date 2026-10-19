@@ -34,7 +34,7 @@ export const McqSection: React.FC<McqSectionProps> = ({ language, onOpenCoding }
   // ---------- Intro ----------
   if (quiz.phase === 'intro') {
     return (
-      <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-6 space-y-4">
+      <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-6 space-y-4">
         <h3 className="text-lg font-bold text-white">Multiple choice</h3>
         <p className="text-sm text-slate-300">
           {questions.length} questions, from beginner to advanced. You see the answer and an explanation after each one.
@@ -48,7 +48,7 @@ export const McqSection: React.FC<McqSectionProps> = ({ language, onOpenCoding }
         <button
           type="button"
           onClick={quiz.start}
-          className="px-5 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-sm active:scale-95 transition-all"
+          className="px-5 py-3 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-sm active:scale-95 transition-all"
         >
           {best ? 'Try again' : 'Start the quiz'}
         </button>
@@ -61,7 +61,7 @@ export const McqSection: React.FC<McqSectionProps> = ({ language, onOpenCoding }
     const wrong = quiz.deck.filter((q) => quiz.answers[q.id] !== q.correctIndex);
     return (
       <div className="space-y-5">
-        <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-6 text-center space-y-2">
+        <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-6 text-center space-y-2">
           <Trophy className="w-8 h-8 text-yellow-400 mx-auto" />
           <p className="text-3xl font-extrabold text-white font-mono">
             {quiz.score.correct}/{quiz.score.total}
@@ -100,14 +100,14 @@ export const McqSection: React.FC<McqSectionProps> = ({ language, onOpenCoding }
           <button
             type="button"
             onClick={quiz.start}
-            className="px-5 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white font-bold text-sm flex items-center justify-center gap-2"
+            className="px-5 py-3 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white font-bold text-sm flex items-center justify-center gap-2"
           >
             <RotateCcw className="w-4 h-4" /> Retry
           </button>
           <button
             type="button"
             onClick={onOpenCoding}
-            className="px-5 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-sm flex items-center justify-center gap-2"
+            className="px-5 py-3 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-sm flex items-center justify-center gap-2"
           >
             Continue to coding <ArrowRight className="w-4 h-4" />
           </button>
@@ -121,7 +121,7 @@ export const McqSection: React.FC<McqSectionProps> = ({ language, onOpenCoding }
   const progress = Math.round(((quiz.index + (quiz.answered ? 1 : 0)) / quiz.deck.length) * 100);
 
   return (
-    <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4 sm:p-6 space-y-5">
+    <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-4 sm:p-6 space-y-5">
       <div className="space-y-2">
         <div className="flex items-center justify-between text-xs font-mono">
           <span className="text-slate-400">
@@ -184,7 +184,7 @@ export const McqSection: React.FC<McqSectionProps> = ({ language, onOpenCoding }
           <button
             type="button"
             onClick={quiz.next}
-            className="w-full sm:w-auto px-5 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-sm flex items-center justify-center gap-2"
+            className="w-full sm:w-auto px-5 py-3 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-sm flex items-center justify-center gap-2"
           >
             {quiz.isLast ? 'See results' : 'Next question'} <ArrowRight className="w-4 h-4" />
           </button>

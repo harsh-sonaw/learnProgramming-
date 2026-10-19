@@ -64,26 +64,26 @@ export const LanguageTestView: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-3 gap-3 text-center">
-        <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-3">
+        <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-3">
           <p className="text-[11px] font-mono text-slate-400">MCQs</p>
           <p className="text-lg font-bold text-white font-mono">
             {mcqScore.correct}/{mcqTotal}
           </p>
         </div>
-        <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-3">
+        <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-3">
           <p className="text-[11px] font-mono text-slate-400">Coding</p>
           <p className="text-lg font-bold text-white font-mono">
             {codingSolved}/{exercises.length}
           </p>
         </div>
-        <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-3">
+        <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-3">
           <p className="text-[11px] font-mono text-emerald-300">Overall</p>
           <p className="text-lg font-bold text-white font-mono">{overall}%</p>
           <p className="text-[10px] text-slate-400">{gradeLabel(overall)}</p>
         </div>
       </div>
 
-      <div className="flex gap-2 p-1 rounded-xl bg-slate-900/60 border border-slate-800" role="tablist">
+      <div className="flex gap-2 p-1 rounded-lg bg-slate-900/60 border border-slate-800" role="tablist">
         <button type="button" role="tab" aria-selected={section === 'mcq'} className={tabClass(section === 'mcq')} onClick={() => setSection('mcq')}>
           MCQs ({mcqTotal})
         </button>
