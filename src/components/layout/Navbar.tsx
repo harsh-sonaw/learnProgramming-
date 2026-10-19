@@ -1,5 +1,5 @@
 import React from 'react';
-import { Code2, Flame, Trophy, MessageSquare, Terminal, ShieldAlert, Zap, BookOpen } from 'lucide-react';
+import { Code2, Flame, Trophy, MessageSquare, Terminal, ShieldAlert, Zap, BookOpen, ClipboardCheck } from 'lucide-react';
 import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '@/store';
 import type { NavigationTab } from '@/types';
@@ -16,6 +16,7 @@ export const Navbar: React.FC = () => {
 
   const navItems: { id: NavigationTab; label: string; icon: React.ReactNode; badge?: string }[] = [
     { id: 'tracks', label: 'Tracks', icon: <BookOpen className="w-4 h-4" /> },
+    { id: 'test', label: 'Tests', icon: <ClipboardCheck className="w-4 h-4 text-sky-400" /> },
     { 
       id: 'daily', 
       label: 'Daily Sprint', 

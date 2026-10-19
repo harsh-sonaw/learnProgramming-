@@ -11,6 +11,8 @@ export const XP_REWARDS = {
   forumComment: 15,
   /** Re-solving an exercise pays this fraction of its XP. */
   replayMultiplier: 0.25,
+  /** XP per MCQ answered correctly, paid only for score above your previous best. */
+  mcqCorrect: 5,
 } as const;
 
 export const CONFETTI_COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#8b5cf6', '#ec4899'];

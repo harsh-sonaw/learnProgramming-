@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { LanguageIcon } from '@/components/common/LanguageIcon';
 import { useCopyToClipboard } from '@/hooks/useCopyToClipboard';
+import { useAutocomplete } from '@/hooks/useAutocomplete';
+import { SuggestionBar } from '@/components/editor/SuggestionBar';
 import { Play, Copy, Check, Share2, Terminal } from 'lucide-react';
 import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '@/store';
@@ -40,6 +42,13 @@ export const CodeSandboxView: React.FC = () => {
   const [shareCollaborative, setShareCollaborative] = useState(true);
 
   const currentCode = sandboxCode[sandboxLanguage];
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const autocomplete = useAutocomplete({
+    value: currentCode,
+    onChange: (next) => setSandboxCode(sandboxLanguage, next),
+    language: sandboxLanguage,
+    textareaRef,
+  });
 
   const handleRun = async () => {
     setIsRunning(true);
@@ -164,10 +173,20 @@ export const CodeSandboxView: React.FC = () => {
               {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
             </button>
           </div>
+          <SuggestionBar
+            suggestions={autocomplete.suggestions}
+            selectedIndex={autocomplete.selectedIndex}
+            onAccept={autocomplete.accept}
+          />
           <textarea
+            ref={textareaRef}
             value={currentCode}
-            onChange={e => setSandboxCode(sandboxLanguage, e.target.value)}
+            {...autocomplete.textareaProps}
+            onKeyDown={autocomplete.handleKeyDown}
             spellCheck={false}
+            autoCapitalize="off"
+            autoCorrect="off"
+            autoComplete="off"
             className="flex-1 p-4 bg-transparent text-emerald-300 font-mono text-xs leading-6 resize-none focus:outline-none selection:bg-emerald-500/30 selection:text-white"
             placeholder="Type your code here..."
           />

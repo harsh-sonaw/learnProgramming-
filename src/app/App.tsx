@@ -9,6 +9,7 @@ import { ProfileView } from '@/features/profile/ProfileView';
 import { CodeSandboxView } from '@/features/sandbox/CodeSandboxView';
 import { StreakModal } from '@/features/streak/StreakModal';
 import { TracksView } from '@/features/tracks/TracksView';
+import { LanguageTestView } from '@/features/test/LanguageTestView';
 import { CodingWorkspace } from '@/features/workspace/CodingWorkspace';
 import { useAppStore } from '@/store';
 import type { NavigationTab } from '@/types';
@@ -16,6 +17,7 @@ import type { NavigationTab } from '@/types';
 /** One screen per navigation tab. Add a tab by adding it here and in NavigationTab. */
 const VIEWS: Record<NavigationTab, React.ComponentType> = {
   tracks: TracksView,
+  test: LanguageTestView,
   workspace: CodingWorkspace,
   daily: DailyChallengeView,
   sandbox: CodeSandboxView,

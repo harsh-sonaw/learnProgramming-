@@ -1,6 +1,6 @@
 import React from 'react';
 import { LanguageIcon } from '@/components/common/LanguageIcon';
-import { CheckCircle2, ArrowRight, PlayCircle } from 'lucide-react';
+import { CheckCircle2, ArrowRight, PlayCircle, ClipboardCheck } from 'lucide-react';
 import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '@/store';
 import { LANGUAGES, COURSES } from '@/data/courses';
@@ -10,12 +10,14 @@ export const TracksView: React.FC = () => {
     currentTrackId,
     setCurrentTrackId,
     selectExercise,
+    setActiveTab,
     user,
   } = useAppStore(
     useShallow((s) => ({
       currentTrackId: s.currentTrackId,
       setCurrentTrackId: s.setCurrentTrackId,
       selectExercise: s.selectExercise,
+      setActiveTab: s.setActiveTab,
       user: s.user,
     })),
   );
@@ -144,6 +146,14 @@ export const TracksView: React.FC = () => {
                 <span>Track Completed!</span>
               </div>
             )}
+
+            <button
+              onClick={() => setActiveTab('test')}
+              className="px-5 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white font-bold text-sm flex items-center justify-center gap-2 active:scale-95 transition-all"
+            >
+              <ClipboardCheck className="w-4 h-4 text-sky-400" />
+              <span>Take the {activeTrack.name} test</span>
+            </button>
           </div>
         </div>
       </div>

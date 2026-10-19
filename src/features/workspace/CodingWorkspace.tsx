@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
+import { DAILY_CHALLENGES } from '@/data/challenges';
+import { useAutocomplete } from '@/hooks/useAutocomplete';
+import { SuggestionBar } from '@/components/editor/SuggestionBar';
 import { useCopyToClipboard } from '@/hooks/useCopyToClipboard';
 import { Play, CheckCircle2, XCircle, RotateCcw, Copy, Check, Lightbulb, ChevronLeft, ChevronRight, Terminal as TerminalIcon, Sparkles, ArrowRight } from 'lucide-react';
 import { useShallow } from 'zustand/react/shallow';
@@ -15,6 +18,7 @@ export const CodingWorkspace: React.FC = () => {
     setCurrentExerciseId,
     setActiveTab,
     completeExercise,
+    solveDailyChallenge,
     user,
   } = useAppStore(
     useShallow((s) => ({
@@ -22,11 +26,14 @@ export const CodingWorkspace: React.FC = () => {
       setCurrentExerciseId: s.setCurrentExerciseId,
       setActiveTab: s.setActiveTab,
       completeExercise: s.completeExercise,
+      solveDailyChallenge: s.solveDailyChallenge,
       user: s.user,
     })),
   );
 
-  const exercise = ALL_EXERCISES.find(e => e.id === currentExerciseId) || ALL_EXERCISES[0];
+  // Daily challenges are not part of the track curriculum, so look them up separately.
+  const dailyChallenge = DAILY_CHALLENGES.find(c => c.id === currentExerciseId);
+  const exercise = ALL_EXERCISES.find(e => e.id === currentExerciseId) || dailyChallenge || ALL_EXERCISES[0];
   const isAlreadySolved = Boolean(user.solvedExercises[exercise.id]);
 
   // Code state
@@ -48,6 +55,12 @@ export const CodingWorkspace: React.FC = () => {
   const [submissionSuccess, setSubmissionSuccess] = useState(false);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const autocomplete = useAutocomplete({
+    value: code,
+    onChange: setCode,
+    language: exercise.trackId,
+    textareaRef,
+  });
 
   // Sync code whenever exercise changes
   useEffect(() => {
@@ -77,6 +90,8 @@ export const CodingWorkspace: React.FC = () => {
 
   // Tab key and indentation handler in editor
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (autocomplete.handleKeyDown(e)) return;
+
     if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
       e.preventDefault();
       handleRunTests();
@@ -140,7 +155,11 @@ export const CodingWorkspace: React.FC = () => {
 
       if (results.allPassed) {
         setSubmissionSuccess(true);
-        completeExercise(exercise.id, code, exercise.xpReward);
+        if (dailyChallenge && dailyChallenge.id === exercise.id) {
+          solveDailyChallenge(code, dailyChallenge.xpReward + dailyChallenge.bonusXp);
+        } else {
+          completeExercise(exercise.id, code, exercise.xpReward);
+        }
       }
     } catch (err: any) {
       setRunResults({
@@ -357,6 +376,12 @@ export const CodingWorkspace: React.FC = () => {
             </div>
           </div>
 
+          <SuggestionBar
+            suggestions={autocomplete.suggestions}
+            selectedIndex={autocomplete.selectedIndex}
+            onAccept={autocomplete.accept}
+          />
+
           {/* Interactive Code Editor with Line Numbers */}
           <div className="flex-1 min-h-[220px] relative overflow-hidden flex bg-slate-950 font-mono">
             {/* Gutter Line Numbers */}
@@ -370,9 +395,12 @@ export const CodingWorkspace: React.FC = () => {
             <textarea
               ref={textareaRef}
               value={code}
-              onChange={e => setCode(e.target.value)}
+              {...autocomplete.textareaProps}
               onKeyDown={handleKeyDown}
               spellCheck={false}
+              autoCapitalize="off"
+              autoCorrect="off"
+              autoComplete="off"
               className={`flex-1 p-3 bg-transparent text-emerald-300/90 font-mono ${getFontSizeClass()} leading-6 resize-none focus:outline-none focus:ring-0 selection:bg-emerald-500/30 selection:text-white`}
               placeholder="Write your code here..."
             />

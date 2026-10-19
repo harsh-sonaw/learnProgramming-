@@ -127,6 +127,8 @@ export interface UserProfile {
   weekStart?: string;
   /** Forum posts this user has upvoted (one vote per post). */
   upvotedPostIds?: string[];
+  /** Best MCQ score per language test. */
+  mcqResults?: Partial<Record<LanguageId, McqResult>>;
 }
 
 export interface ActivityDay {
@@ -190,9 +192,31 @@ export interface ForumPost {
 
 export type NavigationTab =
   | 'tracks'
+  | 'test'
   | 'workspace'
   | 'daily'
   | 'sandbox'
   | 'leaderboards'
   | 'community'
   | 'profile';
+
+export interface McqQuestion {
+  id: string;
+  trackId: LanguageId;
+  difficulty: Difficulty;
+  question: string;
+  /** Optional code shown under the question. */
+  code?: string;
+  options: string[];
+  /** Index into `options` of the right answer. */
+  correctIndex: number;
+  explanation: string;
+}
+
+/** Best result for one language's MCQ section. */
+export interface McqResult {
+  bestScore: number;
+  total: number;
+  attempts: number;
+  lastAttemptAt: string;
+}

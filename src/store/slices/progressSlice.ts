@@ -9,8 +9,9 @@ import {
   unlockBadge,
   xpForSolve,
 } from '@/core/rewards';
+import { mergeQuizResult, xpForQuizImprovement, type QuizScore } from '@/core/quiz';
 import { triggerConfetti } from '@/lib/confetti';
-import type { UserProfile } from '@/types';
+import type { LanguageId, UserProfile } from '@/types';
 import type { SliceCreator } from '@/store/types';
 
 const BADGE_CONTEXT: BadgeContext = {
@@ -30,6 +31,8 @@ export interface ProgressSlice {
   toggleStarProject: (postId: string) => void;
   /** Unlock a badge once and show its notification. */
   grantBadge: (badgeId: string) => void;
+  /** Save an MCQ attempt. Returns the XP earned (only for beating your best score). */
+  submitMcqResult: (language: LanguageId, score: QuizScore) => number;
 }
 
 export const createProgressSlice: SliceCreator<ProgressSlice> = (set, get) => ({
@@ -84,6 +87,17 @@ export const createProgressSlice: SliceCreator<ProgressSlice> = (set, get) => ({
     set((s) => ({
       user: { ...s.user, starredProjectIds: toggleId(s.user.starredProjectIds, postId) },
     })),
+
+  submitMcqResult: (language, score) => {
+    const prev = get().user;
+    const previous = prev.mcqResults?.[language];
+    const xp = xpForQuizImprovement(previous?.bestScore ?? 0, score.correct);
+    set({
+      user: { ...prev, mcqResults: { ...prev.mcqResults, [language]: mergeQuizResult(previous, score) } },
+    });
+    if (xp > 0) get().addXp(xp, true);
+    return xp;
+  },
 
   grantBadge: (badgeId) => {
     const { user, unlocked } = unlockBadge(get().user, badgeId);

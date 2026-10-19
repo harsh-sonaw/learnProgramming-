@@ -76,6 +76,28 @@ Keep API keys on the server. Anything prefixed `VITE_` is public.
 - `main.tsx` logs unhandled errors and promise rejections through `lib/logger.ts`.
 - Failed saves are logged, not swallowed; load failures show a banner in the app.
 
+## Language tests
+
+`features/test/` has two sections per language:
+
+- **MCQs** (`McqSection` + `useMcqQuiz`): questions live in `data/mcq.ts` (answer order is
+  shuffled deterministically). Scoring, XP and result merging are pure functions in `core/quiz.ts`.
+  XP is paid only for beating your previous best, so retries cannot be farmed. Best scores are
+  stored on the user profile (`user.mcqResults`).
+- **Coding** (`CodingSection`): lists the language's existing exercises and opens them in the
+  workspace. The overall grade weighs both sections equally (`overallPercent`).
+
+To add questions, append to the language's array in `data/mcq.ts` using the `q(...)` helper.
+
+## Editor suggestions
+
+`core/autocomplete.ts` is the engine (no React): it finds the word at the cursor, mutes itself
+inside strings and comments, and ranks language words, snippets and identifiers already in the
+file. `data/completions.ts` holds the word lists per language (SQL also offers the in-memory
+tables and columns). `hooks/useAutocomplete.ts` connects it to a `<textarea>`, and
+`components/editor/SuggestionBar.tsx` shows the chips (tap on touch screens; Tab or Arrow+Enter
+on a keyboard; Esc hides).
+
 ## Conventions
 
 - Components: `PascalCase.tsx`. Everything else: `camelCase.ts`. Hooks start with `use`.
@@ -88,4 +110,5 @@ Keep API keys on the server. Anything prefixed `VITE_` is public.
 - Large screens (`CodingWorkspace`, `CommunityForumView`) still mix handlers with JSX; extract
   hooks (`useExerciseRunner`, `useForumFilters`) next.
 - `strict` mode is off; enabling it will surface typing gaps (`any` in the code runner).
-- No automated tests are committed yet. `core/` and `store/` are the best place to start.
+- No automated tests are committed yet. `core/` (including `quiz.ts` and `autocomplete.ts`) and
+  `store/` are the best place to start.
