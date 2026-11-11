@@ -1,5 +1,6 @@
 import { LanguageInfo, LanguageTrack, Exercise } from '../types';
 import { DAILY_CHALLENGES } from './challenges';
+import { PYTHON_EXTRA_MODULES } from './pythonCurriculum';
 
 export const LANGUAGES: LanguageInfo[] = [
   {
@@ -59,6 +60,7 @@ export const LANGUAGES: LanguageInfo[] = [
   }
 ];
 
+// python modules from pythonCurriculum.ts augment the original two
 export const COURSES: Record<string, LanguageTrack> = {
   python: {
     id: 'python',
@@ -970,6 +972,15 @@ GROUP BY customer_name;
     ]
   }
 };
+
+// Python track gains the full data-driven curriculum modules from pythonCurriculum.ts
+// Must run before ALL_EXERCISES is derived, or those exercises are not findable.
+COURSES.python.modules.push(...PYTHON_EXTRA_MODULES);
+
+// Keep LanguageInfo.totalExercises accurate for the Python card
+const pyTotal = COURSES.python.modules.reduce((n, m) => n + m.exercises.length, 0);
+const pyLang = LANGUAGES.find(l => l.id === 'python');
+if (pyLang) pyLang.totalExercises = pyTotal;
 
 export const ALL_EXERCISES: Exercise[] = Object.values(COURSES).flatMap(course =>
   course.modules.flatMap(m => m.exercises)

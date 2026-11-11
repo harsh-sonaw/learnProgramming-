@@ -6,7 +6,7 @@ import { BADGES } from '../data/badgesData';
 import { SEED_FORUM_POSTS } from '../data/forumData';
 import { SEED_LEADERBOARD, LEAGUE_TIERS } from '../data/leaderboardData';
 import { getTodayChallenge } from '../data/challenges';
-import { useConvexData } from '../convex/ConvexDataProvider';
+import { useConvexData } from '../convex/cloud';
 import {
   dateKey,
   awardXp,

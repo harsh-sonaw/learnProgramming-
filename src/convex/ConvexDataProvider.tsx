@@ -1,36 +1,13 @@
-import React, { createContext, useContext, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { useMutation, useQuery } from 'convex/react';
 import { api } from '../../convex/_generated/api';
+import { CloudSync, CloudSyncContext, SandboxCode } from './cloud';
 import type { UserProfile, ForumPost, LanguageId } from '../types';
 
-type SandboxCode = Record<LanguageId, string>;
-
-interface InitialAppData {
-  profile: UserProfile;
-  forumPosts: ForumPost[];
-  sandboxCode: SandboxCode;
-  sandboxLanguage: LanguageId;
-}
-
-interface RemoteAppData {
-  profile: UserProfile | null;
-  forumPosts: ForumPost[] | null;
-  sandboxCode: SandboxCode | null;
-  sandboxLanguage: LanguageId | null;
-}
-
-interface ConvexDataContextValue {
-  enabled: boolean;
-  data: RemoteAppData | undefined;
-  initialize: (data: InitialAppData) => Promise<null>;
-  saveProfile: (value: UserProfile) => Promise<null>;
-  saveForumPosts: (value: ForumPost[]) => Promise<null>;
-  saveSandboxCode: (value: SandboxCode) => Promise<null>;
-  saveSandboxLanguage: (value: LanguageId) => Promise<null>;
-}
-
-const ConvexDataContext = createContext<ConvexDataContextValue | null>(null);
-
+/**
+ * Convex-backed sync. Only reachable through `mountCloud`, which is imported
+ * dynamically and only when VITE_CONVEX_URL is configured.
+ */
 export const ConvexDataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const data = useQuery(api.app.load, {});
   const initializeMutation = useMutation(api.app.initialize);
@@ -39,15 +16,16 @@ export const ConvexDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const saveSandboxCodeMutation = useMutation(api.app.saveSandboxCode);
   const saveSandboxLanguageMutation = useMutation(api.app.saveSandboxLanguage);
 
-  const value = useMemo<ConvexDataContextValue>(
+  const value = useMemo<CloudSync>(
     () => ({
       enabled: true,
       data,
       initialize: initialData => initializeMutation(initialData),
-      saveProfile: profile => saveProfileMutation({ value: profile }),
-      saveForumPosts: forumPosts => saveForumPostsMutation({ value: forumPosts }),
-      saveSandboxCode: sandboxCode => saveSandboxCodeMutation({ value: sandboxCode }),
-      saveSandboxLanguage: sandboxLanguage => saveSandboxLanguageMutation({ value: sandboxLanguage }),
+      saveProfile: (profile: UserProfile) => saveProfileMutation({ value: profile }),
+      saveForumPosts: (forumPosts: ForumPost[]) => saveForumPostsMutation({ value: forumPosts }),
+      saveSandboxCode: (sandboxCode: SandboxCode) => saveSandboxCodeMutation({ value: sandboxCode }),
+      saveSandboxLanguage: (sandboxLanguage: LanguageId) =>
+        saveSandboxLanguageMutation({ value: sandboxLanguage }),
     }),
     [
       data,
@@ -59,8 +37,5 @@ export const ConvexDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     ]
   );
 
-  return <ConvexDataContext.Provider value={value}>{children}</ConvexDataContext.Provider>;
+  return <CloudSyncContext.Provider value={value}>{children}</CloudSyncContext.Provider>;
 };
-
-export const useConvexData = (): ConvexDataContextValue | null =>
-  useContext(ConvexDataContext);

@@ -1,10 +1,16 @@
-import React from 'react';
-import { ArrowRight, Check, ChevronDown } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { ArrowRight, Check, ChevronDown, BookOpen } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { LANGUAGES, COURSES } from '../data/courses';
-import { LanguageId } from '../types';
+import { LanguageId, CourseModule, UserProfile } from '../types';
 import { TAB_PAGES } from '../utils/routes';
 import { Button, ButtonLink, Page, PageHeader, Progress, Section } from './ui';
+
+const LEVEL_CLASS: Record<string, string> = {
+  Beginner: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300',
+  Intermediate: 'border-amber-500/30 bg-amber-500/10 text-amber-300',
+  Advanced: 'border-rose-500/30 bg-rose-500/10 text-rose-300',
+};
 
 export const TracksView: React.FC = () => {
   const { currentTrackId, setCurrentTrackId, selectExercise, user } = useApp();
@@ -13,6 +19,25 @@ export const TracksView: React.FC = () => {
   const exercises = activeTrack.modules.flatMap(module => module.exercises);
   const solvedCount = exercises.filter(exercise => user.solvedExercises[exercise.id]).length;
   const nextExercise = exercises.find(exercise => !user.solvedExercises[exercise.id]);
+  const [topicQuery, setTopicQuery] = useState('');
+  const [levelFilter, setLevelFilter] = useState<'All' | 'Beginner' | 'Intermediate' | 'Advanced'>('All');
+  const [openLessonId, setOpenLessonId] = useState<string | null>(null);
+
+  const visibleModules = useMemo(() => {
+    const q = topicQuery.trim().toLowerCase();
+    return activeTrack.modules
+      .map((module, index) => ({ module, index }))
+      .filter(({ module }) => {
+        const level = (module as any).level || module.exercises[0]?.difficulty || 'Beginner';
+        if (levelFilter !== 'All' && level !== levelFilter) return false;
+        if (!q) return true;
+        return (
+          module.title.toLowerCase().includes(q) ||
+          module.description.toLowerCase().includes(q) ||
+          module.exercises.some(exercise => exercise.title.toLowerCase().includes(q))
+        );
+      });
+  }, [activeTrack, topicQuery, levelFilter]);
 
   return (
     <Page width="wide">
@@ -103,17 +128,79 @@ export const TracksView: React.FC = () => {
               <span className="text-xs text-slate-500">At your own pace</span>
             </div>
 
-            {activeTrack.modules.map((module, moduleIndex) => (
-              <section key={module.id} aria-labelledby={`${module.id}-heading`} className="pt-6">
+            <div className="mb-5 flex flex-wrap items-center gap-2">
+              <input
+                type="search"
+                value={topicQuery}
+                onChange={event => setTopicQuery(event.target.value)}
+                placeholder="Search topics…"
+                aria-label="Search topics"
+                className="min-h-10 flex-1 rounded-md border border-slate-800 bg-slate-900 px-3 text-sm text-slate-100 placeholder:text-slate-600 focus:border-slate-600 focus:outline-none"
+              />
+              {(['All', 'Beginner', 'Intermediate', 'Advanced'] as const).map(level => (
+                <button
+                  key={level}
+                  onClick={() => setLevelFilter(level)}
+                  aria-pressed={levelFilter === level}
+                  className={`min-h-9 rounded-md border px-3 text-xs font-medium transition-colors ${
+                    levelFilter === level
+                      ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300'
+                      : 'border-slate-800 text-slate-400 hover:border-slate-700 hover:text-slate-200'
+                  }`}
+                >
+                  {level}
+                </button>
+              ))}
+            </div>
+
+            {visibleModules.length === 0 && (
+              <p className="rounded-lg border border-slate-800 bg-slate-900/40 p-4 text-sm text-slate-400">
+                No topics match your search.
+              </p>
+            )}
+
+            {visibleModules.map(({ module, index: moduleIndex }) => (
+              <ModuleBlock
+                key={module.id}
+                module={module}
+                moduleIndex={moduleIndex}
+                user={user}
+                selectExercise={selectExercise}
+                open={openLessonId === module.id}
+                onToggle={() => setOpenLessonId(openLessonId === module.id ? null : module.id)}
+              />
+            ))}
+          </section>
+        </div>
+      </div>
+    </Page>
+  );
+};
+
+const ModuleBlock: React.FC<{
+  module: CourseModule & { level?: string; lessonNotes?: string[] };
+  moduleIndex: number;
+  user: UserProfile;
+  selectExercise: (id: string) => void;
+  open: boolean;
+  onToggle: () => void;
+}> = ({ module, moduleIndex, user, selectExercise, open, onToggle }) => {
+  const level: string = module.level || module.exercises[0]?.difficulty || 'Beginner';
+  const levelClass = LEVEL_CLASS[level] || LEVEL_CLASS.Beginner;
+  return (
+  <section key={module.id} aria-labelledby={`${module.id}-heading`} className="pt-6">
                 <div className="mb-3 flex items-start justify-between gap-4">
                   <div className="flex gap-3">
                     <span className="pt-0.5 font-mono text-xs text-slate-600">
                       {String(moduleIndex + 1).padStart(2, '0')}
                     </span>
                     <div>
-                      <h3 id={`${module.id}-heading`} className="text-sm font-medium text-slate-100">
-                        {module.title}
-                      </h3>
+                      <div className="flex items-center gap-2">
+                        <h3 id={`${module.id}-heading`} className="text-sm font-medium text-slate-100">
+                          {module.title}
+                        </h3>
+                        <span className={`rounded-full border px-2 py-0.5 text-[10px] font-medium ${levelClass}`}>{level}</span>
+                      </div>
                       <p className="mt-1 text-xs leading-5 text-slate-500">{module.description}</p>
                     </div>
                   </div>
@@ -158,11 +245,22 @@ export const TracksView: React.FC = () => {
                     );
                   })}
                 </ul>
+
+                <button
+                  onClick={onToggle}
+                  aria-expanded={open}
+                  className="mt-2 flex items-center gap-2 text-xs font-medium text-slate-400 hover:text-emerald-400"
+                >
+                  <BookOpen className="h-3.5 w-3.5" aria-hidden="true" />
+                  {open ? 'Hide lesson notes' : 'Lesson notes & key takeaways'}
+                </button>
+                {open && (
+                  <div className="mt-2 space-y-2 rounded-lg border border-slate-800 bg-slate-950/60 p-4">
+                    {(module.lessonNotes || []).map((note: string, i: number) => (
+                      <p key={i} className="text-xs leading-6 text-slate-300">{note}</p>
+                    ))}
+                  </div>
+                )}
               </section>
-            ))}
-          </section>
-        </div>
-      </div>
-    </Page>
   );
 };
