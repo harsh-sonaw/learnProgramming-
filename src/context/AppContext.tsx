@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import confetti from 'canvas-confetti';
 import { UserProfile, LanguageId, ForumPost, Badge, LeaderboardUser } from '../types';
-import { COURSES, ALL_EXERCISES } from '../data/courses';
+import { COURSES, ALL_EXERCISES, findAnyExercise } from '../data/courses';
 import { BADGES } from '../data/badgesData';
 import { SEED_FORUM_POSTS } from '../data/forumData';
 import { SEED_LEADERBOARD, LEAGUE_TIERS } from '../data/leaderboardData';
@@ -14,20 +14,27 @@ import {
   normalizeUser,
   purchaseStreakFreeze,
 } from '../utils/progress';
+import {
+  NavigationTab,
+  navigateToTab,
+  readPageTab,
+  readExerciseFromUrl,
+  replaceExerciseInUrl,
+  readStoredTrack,
+  storeTrack,
+} from '../utils/routes';
 
 const BADGE_CONTEXT: BadgeContext = {
   exerciseTrack: Object.fromEntries(ALL_EXERCISES.map(e => [e.id, e.trackId])),
   sqlExerciseIds: (COURSES.sql?.modules.flatMap(m => m.exercises) || []).map(e => e.id),
 };
 
-export type NavigationTab =
-  | 'tracks'
-  | 'workspace'
-  | 'daily'
-  | 'sandbox'
-  | 'leaderboards'
-  | 'community'
-  | 'profile';
+// Every tab is rendered by its own HTML document, so this type now lives with
+// the page routes. Re-exported here so existing imports keep working.
+export type { NavigationTab };
+
+const isLanguageId = (value: string): value is LanguageId =>
+  Object.prototype.hasOwnProperty.call(COURSES, value);
 
 interface AppContextType {
   user: UserProfile;
@@ -188,9 +195,39 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setUser(next);
   };
 
-  const [activeTab, setActiveTab] = useState<NavigationTab>('tracks');
-  const [currentTrackId, setCurrentTrackId] = useState<LanguageId>('python');
-  const [currentExerciseId, setCurrentExerciseId] = useState<string>('py-ex-1');
+  // Each tab is a separate HTML document, so the active tab is a property of
+  // the page itself rather than React state.
+  const activeTab = readPageTab();
+
+  const exerciseFromUrl = readExerciseFromUrl();
+  const [currentExerciseId, setCurrentExerciseIdState] = useState<string>(
+    () => exerciseFromUrl ?? 'py-ex-1'
+  );
+  const [currentTrackId, setCurrentTrackIdState] = useState<LanguageId>(() => {
+    if (exerciseFromUrl) {
+      const exercise = findAnyExercise(exerciseFromUrl);
+      if (exercise) return exercise.trackId;
+    }
+    return readStoredTrack(isLanguageId) ?? 'python';
+  });
+
+  const setCurrentTrackId = (id: LanguageId) => {
+    setCurrentTrackIdState(id);
+    storeTrack(id);
+  };
+
+  const setCurrentExerciseId = (id: string) => {
+    const exercise = findAnyExercise(id);
+    if (exercise) setCurrentTrackId(exercise.trackId);
+    setCurrentExerciseIdState(id);
+    if (activeTab === 'workspace') replaceExerciseInUrl(id);
+  };
+
+  // Navigating between tabs loads another document.
+  const setActiveTab = (tab: NavigationTab) => {
+    if (tab === activeTab) return;
+    navigateToTab(tab);
+  };
 
   const [sandboxCode, setSandboxCodeState] = useState<Record<LanguageId, string>>(() => {
     try {
@@ -200,7 +237,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return DEFAULT_SANDBOX_CODE;
   });
 
-  const [sandboxLanguage, setSandboxLanguage] = useState<LanguageId>('javascript');
+  const [sandboxLanguage, setSandboxLanguageState] = useState<LanguageId>(() => {
+    // Persisted so "fork to playground" lands on the right language after the
+    // full page load.
+    try {
+      const saved = localStorage.getItem('devpulse_sandbox_language');
+      if (saved && isLanguageId(saved)) return saved;
+    } catch {}
+    return 'javascript';
+  });
+
+  const setSandboxLanguage = (lang: LanguageId) => {
+    setSandboxLanguageState(lang);
+    try {
+      localStorage.setItem('devpulse_sandbox_language', lang);
+    } catch {}
+  };
   const [forumPosts, setForumPosts] = useState<ForumPost[]>(() => {
     try {
       const saved = localStorage.getItem('devpulse_forum_posts');
@@ -250,18 +302,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const selectExercise = (exerciseId: string) => {
-    const ex = ALL_EXERCISES.find(e => e.id === exerciseId);
-    if (ex) {
-      setCurrentTrackId(ex.trackId);
-    }
-    setCurrentExerciseId(exerciseId);
-    setActiveTab('workspace');
+    const ex = findAnyExercise(exerciseId);
+    if (ex) setCurrentTrackId(ex.trackId);
+    setCurrentExerciseIdState(exerciseId);
+    navigateToTab('workspace', `?exercise=${encodeURIComponent(exerciseId)}`);
   };
 
   const forkCodeToSandbox = (code: string, language: LanguageId) => {
+    // Persist synchronously: the tab change below triggers a full page load, so
+    // effects would never get a chance to flush the state.
+    const nextCode = { ...sandboxCode, [language]: code };
+    setSandboxCodeState(nextCode);
     setSandboxLanguage(language);
-    setSandboxCode(language, code);
-    setActiveTab('sandbox');
+    try {
+      localStorage.setItem('devpulse_sandbox_code', JSON.stringify(nextCode));
+    } catch {}
+    navigateToTab('sandbox');
   };
 
   const announce = (r: AwardResult) => {

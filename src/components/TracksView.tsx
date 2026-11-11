@@ -1,11 +1,12 @@
 import React from 'react';
-import { ArrowRight, Check, CheckCircle2, Terminal } from 'lucide-react';
+import { ArrowRight, Check, CheckCircle2, ChevronDown, Terminal } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { LANGUAGES, COURSES } from '../data/courses';
 import { LanguageId } from '../types';
+import { TAB_PAGES } from '../utils/routes';
 
 export const TracksView: React.FC = () => {
-  const { currentTrackId, setCurrentTrackId, selectExercise, user, setActiveTab } = useApp();
+  const { currentTrackId, setCurrentTrackId, selectExercise, user } = useApp();
   const activeTrack = COURSES[currentTrackId];
   const language = LANGUAGES.find(lang => lang.id === currentTrackId)!;
   const exercises = activeTrack.modules.flatMap(module => module.exercises);
@@ -26,29 +27,34 @@ export const TracksView: React.FC = () => {
 
       <div className="grid gap-10 lg:grid-cols-[220px_minmax(0,1fr)] lg:gap-14">
         <aside>
-          <h2 className="mb-4 text-xs font-medium uppercase tracking-widest text-slate-500"><label htmlFor="mobile-track">Learning tracks</label></h2>
-          <select id="mobile-track" value={currentTrackId} onChange={event => setCurrentTrackId(event.target.value as LanguageId)} className="min-h-12 w-full rounded-md border border-slate-700 bg-slate-900 px-3 text-sm text-slate-200 lg:hidden">
-            {LANGUAGES.map(lang => <option key={lang.id} value={lang.id}>{lang.name}</option>)}
-          </select>
-          <nav aria-label="Learning tracks" className="hidden gap-1 lg:grid">
-            {LANGUAGES.map(lang => {
-              const selected = currentTrackId === lang.id;
-              const trackExercises = COURSES[lang.id].modules.flatMap(module => module.exercises);
-              const solved = trackExercises.filter(exercise => user.solvedExercises[exercise.id]).length;
-              return (
-                <button key={lang.id} onClick={() => setCurrentTrackId(lang.id)} aria-current={selected ? 'true' : undefined}
-                  className={`flex min-h-14 items-center justify-between gap-2 rounded-md px-3 py-3 text-left transition-colors ${selected ? 'bg-slate-900 text-white' : 'text-slate-400 hover:bg-slate-900/60 hover:text-slate-200'}`}>
-                  <span className="text-sm font-medium">{lang.name}</span>
-                  <span className={`font-mono text-xs ${selected ? 'text-emerald-400' : 'text-slate-500'}`}>{solved}/{trackExercises.length}</span>
-                </button>
-              );
-            })}
-          </nav>
+          <label htmlFor="track-select" className="mb-2 block text-xs font-medium uppercase tracking-widest text-slate-500">
+            Learning track
+          </label>
+          <div className="relative">
+            <select
+              id="track-select"
+              value={currentTrackId}
+              onChange={event => setCurrentTrackId(event.target.value as LanguageId)}
+              className="min-h-12 w-full appearance-none rounded-md border border-slate-700 bg-slate-900 py-2 pl-3 pr-10 text-sm text-slate-200 transition-colors hover:border-slate-600"
+            >
+              {LANGUAGES.map(lang => {
+                const trackExercises = COURSES[lang.id].modules.flatMap(module => module.exercises);
+                const solved = trackExercises.filter(exercise => user.solvedExercises[exercise.id]).length;
+                return (
+                  <option key={lang.id} value={lang.id} className="bg-slate-900 text-slate-200">
+                    {lang.name} ({solved}/{trackExercises.length})
+                  </option>
+                );
+              })}
+            </select>
+            <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" aria-hidden="true" />
+          </div>
+          <p className="mt-3 text-xs leading-5 text-slate-500">Switch tracks any time. Your progress stays with each language.</p>
           <div className="mt-8 hidden border-t border-slate-800 pt-6 lg:block">
             <Terminal className="mb-3 h-5 w-5 text-slate-500" aria-hidden="true" />
             <h3 className="text-sm font-medium text-slate-200">Room to experiment.</h3>
             <p className="mt-2 text-xs leading-6 text-slate-400">Try an idea or revisit a concept in the playground.</p>
-            <button onClick={() => setActiveTab('sandbox')} className="mt-4 inline-flex items-center gap-2 text-xs font-medium text-emerald-400 hover:text-emerald-300">Open playground <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" /></button>
+            <a href={TAB_PAGES.sandbox} className="mt-4 inline-flex items-center gap-2 text-xs font-medium text-emerald-400 hover:text-emerald-300">Open playground <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" /></a>
           </div>
         </aside>
 

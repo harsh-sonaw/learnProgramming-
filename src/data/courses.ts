@@ -1,4 +1,5 @@
 import { LanguageInfo, LanguageTrack, Exercise } from '../types';
+import { DAILY_CHALLENGES } from './challenges';
 
 export const LANGUAGES: LanguageInfo[] = [
   {
@@ -973,3 +974,13 @@ GROUP BY customer_name;
 export const ALL_EXERCISES: Exercise[] = Object.values(COURSES).flatMap(course =>
   course.modules.flatMap(m => m.exercises)
 );
+
+/**
+ * Course exercises plus the daily-sprint challenges, which are full exercises
+ * but are not part of any course outline.
+ */
+export const ALL_EXERCISES_AND_DAILY: Exercise[] = [...ALL_EXERCISES, ...DAILY_CHALLENGES];
+
+/** Looks up any solvable exercise (course or daily) by id. */
+export const findAnyExercise = (id: string | null | undefined): Exercise | undefined =>
+  id ? ALL_EXERCISES_AND_DAILY.find(exercise => exercise.id === id) : undefined;

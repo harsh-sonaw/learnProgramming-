@@ -16,7 +16,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
-import { ALL_EXERCISES, COURSES } from '../data/courses';
+import { ALL_EXERCISES, COURSES, findAnyExercise } from '../data/courses';
 import { runCode } from '../utils/codeRunner';
 import { RunResults } from '../types';
 import { HelpPanel } from './HelpPanel';
@@ -42,7 +42,7 @@ export const CodingWorkspace: React.FC = () => {
     user
   } = useApp();
 
-  const exercise = ALL_EXERCISES.find(e => e.id === currentExerciseId) || ALL_EXERCISES[0];
+  const exercise = findAnyExercise(currentExerciseId) ?? ALL_EXERCISES[0];
   const isAlreadySolved = Boolean(user.solvedExercises[exercise.id]);
 
   // Code state
@@ -92,7 +92,8 @@ export const CodingWorkspace: React.FC = () => {
   // Find next exercise in same course or next track
   const currentCourseExercises = COURSES[exercise.trackId]?.modules.flatMap(m => m.exercises) || [];
   const currentIndex = currentCourseExercises.findIndex(e => e.id === exercise.id);
-  const nextExercise = currentCourseExercises[currentIndex + 1];
+  // Daily challenges aren't in any course outline, so there is no "next" one.
+  const nextExercise = currentIndex >= 0 ? currentCourseExercises[currentIndex + 1] : undefined;
 
   const handleResetCode = () => {
     setCode(exercise.starterCode);
