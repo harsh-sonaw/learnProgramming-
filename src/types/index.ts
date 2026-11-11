@@ -53,6 +53,15 @@ export interface CourseModule {
   description: string;
   iconName: string;
   exercises: Exercise[];
+  difficulty?: Difficulty;
+  estimatedMinutes?: number;
+  prerequisites?: string[];
+  nextTopicId?: string;
+  explanation?: string;
+  lessonExample?: string;
+  keyTakeaways?: string[];
+  quiz?: { question: string; answer: string };
+  topicTags?: string[];
 }
 
 export interface LanguageTrack {
