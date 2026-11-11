@@ -2,7 +2,13 @@ node_modules/
 build/
 dist/
 coverage/
+.dev.vars
 .DS_Store
 *.log
 .env*
 !.env.example
+
+# Local tooling & debug screenshots
+.agents/
+.wrangler/
+cloudflare-*.png
