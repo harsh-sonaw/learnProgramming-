@@ -1,57 +1,101 @@
 import { findAnyExercise } from '../data/courses';
 import { LanguageId } from '../types';
 
-/** Every top-level destination in the app is its own HTML document. */
+/**
+ * Every distinct task in the app is its own HTML document. Filters (which
+ * leaderboard period, which forum category) stay in-page — they are views of
+ * one task, not separate tasks.
+ */
 export type NavigationTab =
   | 'tracks'
   | 'workspace'
   | 'daily'
   | 'sandbox'
+  | 'sandboxShare'
   | 'leaderboards'
   | 'community'
-  | 'profile';
+  | 'communityNew'
+  | 'communityPost'
+  | 'profile'
+  | 'profileBadges'
+  | 'profileEdit'
+  | 'streak';
 
-/** Maps a tab to the page that renders it. Clean URLs — Cloudflare Pages
- *  serves `/workspace` for `workspace.html` and redirects the `.html` form. */
 export const TAB_PAGES: Record<NavigationTab, string> = {
   tracks: '/',
   workspace: '/workspace',
   daily: '/daily-challenge',
   sandbox: '/playground',
+  sandboxShare: '/playground/share',
   leaderboards: '/leaderboard',
   community: '/community',
+  communityNew: '/community/new',
+  communityPost: '/community/post',
   profile: '/profile',
+  profileBadges: '/profile/badges',
+  profileEdit: '/profile/edit',
+  streak: '/streak',
+};
+
+/** Which top-level nav item each page belongs to. */
+export const PAGE_SECTION: Record<NavigationTab, string> = {
+  tracks: 'Learn',
+  workspace: 'Learn',
+  daily: 'Compete',
+  leaderboards: 'Compete',
+  sandbox: 'Practice',
+  sandboxShare: 'Practice',
+  community: 'Community',
+  communityNew: 'Community',
+  communityPost: 'Community',
+  profile: 'Profile',
+  profileBadges: 'Profile',
+  profileEdit: 'Profile',
+  streak: 'Profile',
+};
+
+/** Top navigation, in display order. */
+export const NAV_ITEMS = ['Learn', 'Practice', 'Compete', 'Community', 'Profile'] as const;
+
+export const SECTION_HOME: Record<(typeof NAV_ITEMS)[number], string> = {
+  Learn: '/',
+  Practice: '/playground',
+  Compete: '/leaderboard',
+  Community: '/community',
+  Profile: '/profile',
 };
 
 const isNavigationTab = (value: string | undefined): value is NavigationTab =>
   Boolean(value) && Object.prototype.hasOwnProperty.call(TAB_PAGES, value as string);
 
-/**
- * Reads the tab this document renders, from `<html data-page="…">`.
- * Falls back to the tracks page so a stray/misconfigured document still renders.
- */
+/** Reads the page this document renders, from `<html data-page="…">`. */
 export const readPageTab = (): NavigationTab => {
   if (typeof document === 'undefined') return 'tracks';
   const page = document.documentElement.dataset.page;
   return isNavigationTab(page) ? page : 'tracks';
 };
 
-/** Full-page navigation. Each tab is a separate document, so this reloads the app. */
 export const navigateToTab = (tab: NavigationTab, search = ''): void => {
   if (typeof window === 'undefined') return;
   window.location.href = `${TAB_PAGES[tab]}${search}`;
 };
 
-/** The exercise id carried in `?exercise=…` on the workspace page, if it exists. */
-export const readExerciseFromUrl = (): string | null => {
+/** Query-string value used as a page key (exercise id, post id). */
+export const readQueryParam = (key: string): string | null => {
   if (typeof window === 'undefined') return null;
-  const id = new URLSearchParams(window.location.search).get('exercise');
+  return new URLSearchParams(window.location.search).get(key) ?? null;
+};
+
+export const withParam = (page: NavigationTab, key: string, value: string): string =>
+  `${TAB_PAGES[page]}?${key}=${encodeURIComponent(value)}`;
+
+/** The exercise id carried in `?exercise=…`, if it resolves to a real exercise. */
+export const readExerciseFromUrl = (): string | null => {
+  const id = readQueryParam('exercise');
   return id && findAnyExercise(id) ? id : null;
 };
 
-/** URL used to open a specific exercise in the workspace page. */
-export const exerciseUrl = (exerciseId: string): string =>
-  `${TAB_PAGES.workspace}?exercise=${encodeURIComponent(exerciseId)}`;
+export const exerciseUrl = (exerciseId: string): string => withParam('workspace', 'exercise', exerciseId);
 
 /** Keeps the address bar in sync as you move between exercises without a reload. */
 export const replaceExerciseInUrl = (exerciseId: string): void => {

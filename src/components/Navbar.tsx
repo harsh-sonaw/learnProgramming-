@@ -1,50 +1,62 @@
 import React from 'react';
-import { Code2, Flame, ArrowUpRight } from 'lucide-react';
-import { useApp, NavigationTab } from '../context/AppContext';
-import { TAB_PAGES } from '../utils/routes';
+import { Flame } from 'lucide-react';
+import { useApp } from '../context/AppContext';
+import { NAV_ITEMS, PAGE_SECTION, SECTION_HOME, TAB_PAGES } from '../utils/routes';
 
-const navItems: { id: NavigationTab; label: string }[] = [
-  { id: 'tracks', label: 'Learn' },
-  { id: 'daily', label: 'Daily challenge' },
-  { id: 'sandbox', label: 'Playground' },
-  { id: 'leaderboards', label: 'Leaderboard' },
-  { id: 'community', label: 'Community' },
-];
-
+/**
+ * One row, five destinations, plus the account link. Secondary pages are
+ * reached from within their section rather than from more top-level tabs.
+ */
 export const Navbar: React.FC = () => {
-  const { user, activeTab, setStreakModalOpen } = useApp();
+  const { user, activeTab } = useApp();
+  const section = PAGE_SECTION[activeTab];
 
   return (
-    <header className="border-b border-slate-800 bg-slate-950">
-      <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-5 py-5 sm:px-8">
-        <a href={TAB_PAGES.tracks} className="flex items-center gap-2.5 text-white" aria-label="DevPulse home">
-          <Code2 className="h-6 w-6 text-emerald-400" aria-hidden="true" />
-          <span className="text-lg font-semibold tracking-tight">devpulse<span className="text-emerald-400">.</span></span>
+    <header className="border-b border-slate-800">
+      <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-5 pt-5 sm:px-8">
+        <a href={TAB_PAGES.tracks} className="flex items-baseline gap-2 text-white">
+          <span className="text-base font-semibold tracking-tight">devpulse</span>
+          <span className="text-base font-semibold text-emerald-400">.</span>
         </a>
-        <div className="flex items-center gap-5 sm:gap-7">
-          <button onClick={() => setStreakModalOpen(true)} className="flex items-center gap-2 text-sm text-slate-300" aria-label={`View your ${user.streak} day streak`}>
-            <Flame className="h-4 w-4 text-emerald-400" aria-hidden="true" />
-            <span>{user.streak}<span className="hidden sm:inline"> day streak</span></span>
-          </button>
-          <a href={TAB_PAGES.profile} className="flex items-center gap-2.5 text-sm text-slate-200" aria-label="Open your profile">
-            <span className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-700 bg-slate-900 text-xs font-medium">{user.displayName.charAt(0).toUpperCase()}</span>
-            <span className="hidden sm:inline">{user.displayName}</span>
-            <ArrowUpRight className="hidden h-3.5 w-3.5 text-slate-500 sm:block" aria-hidden="true" />
+
+        <div className="flex items-center gap-1">
+          <a
+            href={TAB_PAGES.streak}
+            className="flex items-center gap-1.5 rounded-md px-2 py-1.5 text-sm text-slate-400 transition-colors hover:bg-slate-900 hover:text-slate-200"
+            aria-label={`${user.streak} day streak — view streak details`}
+          >
+            <Flame className="h-4 w-4 text-amber-400" aria-hidden="true" />
+            <span className="font-mono text-slate-300">{user.streak}</span>
+            <span className="hidden sm:inline">day streak</span>
+          </a>
+          <a
+            href={TAB_PAGES.profile}
+            className="ml-1 flex items-center gap-2 rounded-md py-1 pl-1 pr-2 transition-colors hover:bg-slate-900"
+            aria-label="Open your profile"
+          >
+            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-800 text-xs font-medium text-slate-200">
+              {user.displayName.charAt(0).toUpperCase()}
+            </span>
+            <span className="hidden text-sm text-slate-300 sm:inline">{user.displayName}</span>
           </a>
         </div>
       </div>
-      <nav aria-label="Main navigation" className="mx-auto flex max-w-7xl gap-6 overflow-x-auto px-5 sm:gap-8 sm:px-8">
-        {navItems.map(item => {
-          const selected = activeTab === item.id || (item.id === 'tracks' && activeTab === 'workspace');
+
+      <nav aria-label="Main" className="mx-auto flex max-w-6xl gap-5 overflow-x-auto px-5 sm:gap-7 sm:px-8">
+        {NAV_ITEMS.map(item => {
+          const selected = section === item;
           return (
             <a
-              key={item.id}
-              href={TAB_PAGES[item.id]}
+              key={item}
+              href={SECTION_HOME[item]}
               aria-current={selected ? 'page' : undefined}
-              onClick={selected ? event => event.preventDefault() : undefined}
-              className={`shrink-0 border-b-2 pb-3 pt-1 text-sm transition-colors ${selected ? 'border-emerald-400 text-white' : 'border-transparent text-slate-400 hover:text-white'}`}
+              className={`shrink-0 border-b-2 pb-3 pt-4 text-sm transition-colors ${
+                selected
+                  ? 'border-emerald-400 text-white'
+                  : 'border-transparent text-slate-400 hover:border-slate-700 hover:text-slate-200'
+              }`}
             >
-              {item.label}
+              {item}
             </a>
           );
         })}

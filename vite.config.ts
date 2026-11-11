@@ -3,15 +3,21 @@ import react from '@vitejs/plugin-react';
 import path from 'path';
 import {defineConfig} from 'vite';
 
-// Each tab is its own HTML document, so every page is a build entry point.
+// Every page is its own HTML document, so each one is a build entry point.
 const PAGES = [
   'index',
   'workspace',
   'daily-challenge',
   'playground',
+  'playground/share',
   'leaderboard',
   'community',
+  'community/new',
+  'community/post',
   'profile',
+  'profile/badges',
+  'profile/edit',
+  'streak',
 ];
 
 export default defineConfig(() => {

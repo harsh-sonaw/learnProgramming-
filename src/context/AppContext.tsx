@@ -6,6 +6,7 @@ import { BADGES } from '../data/badgesData';
 import { SEED_FORUM_POSTS } from '../data/forumData';
 import { SEED_LEADERBOARD, LEAGUE_TIERS } from '../data/leaderboardData';
 import { getTodayChallenge } from '../data/challenges';
+import { useConvexData } from '../convex/ConvexDataProvider';
 import {
   dateKey,
   awardXp,
@@ -58,8 +59,6 @@ interface AppContextType {
   addCommentToPost: (postId: string, content: string) => void;
   markAnswerAccepted: (postId: string, commentId: string) => void;
   toggleStarProject: (postId: string) => void;
-  streakModalOpen: boolean;
-  setStreakModalOpen: (open: boolean) => void;
   useStreakFreeze: () => boolean;
   buyStreakFreeze: (xpCost: number) => boolean;
   updateUserProfile: (updates: Partial<UserProfile>) => void;
@@ -69,6 +68,9 @@ interface AppContextType {
   dismissLevelUpNotification: () => void;
   leaderboardUsers: LeaderboardUser[];
   userRank: number;
+  cloudSyncEnabled: boolean;
+  syncError: string | null;
+  retryCloudSync: () => void;
   triggerConfetti: () => void;
 }
 
@@ -171,6 +173,7 @@ const INITIAL_USER: UserProfile = {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const convexData = useConvexData();
   // Load initial state with localStorage support
   const [user, setUser] = useState<UserProfile>(() => {
     try {
@@ -194,6 +197,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     userRef.current = next;
     setUser(next);
   };
+  const cloudReadyRef = useRef(false);
+  const initializationStartedRef = useRef(false);
+  const cloudSnapshotRef = useRef<{
+    profile: string;
+    forumPosts: string;
+    sandboxCode: string;
+    sandboxLanguage: string;
+  } | null>(null);
+  const [syncError, setSyncError] = useState<string | null>(null);
+  const [syncRetry, setSyncRetry] = useState(0);
 
   // Each tab is a separate HTML document, so the active tab is a property of
   // the page itself rather than React state.
@@ -261,7 +274,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return SEED_FORUM_POSTS;
   });
 
-  const [streakModalOpen, setStreakModalOpen] = useState(false);
   const [badgeNotification, setBadgeNotification] = useState<Badge | null>(null);
   const [levelUpNotification, setLevelUpNotification] = useState<number | null>(null);
 
@@ -283,6 +295,135 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       localStorage.setItem('devpulse_forum_posts', JSON.stringify(forumPosts));
     } catch {}
   }, [forumPosts]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('devpulse_sandbox_language', sandboxLanguage);
+    } catch {}
+  }, [sandboxLanguage]);
+
+  useEffect(() => {
+    if (!convexData?.enabled || !convexData.data) return;
+
+    const remote = convexData.data;
+    if (!remote.profile || !remote.forumPosts || !remote.sandboxCode || !remote.sandboxLanguage) {
+      if (initializationStartedRef.current) return;
+      initializationStartedRef.current = true;
+      void convexData
+        .initialize({ profile: userRef.current, forumPosts, sandboxCode, sandboxLanguage })
+        .catch((error: unknown) => {
+          initializationStartedRef.current = false;
+          setSyncError(error instanceof Error ? error.message : String(error));
+        });
+      return;
+    }
+
+    const profile = normalizeUser(remote.profile, dateKey());
+    const nextSnapshot = {
+      profile: JSON.stringify(remote.profile),
+      forumPosts: JSON.stringify(remote.forumPosts),
+      sandboxCode: JSON.stringify(remote.sandboxCode),
+      sandboxLanguage: JSON.stringify(remote.sandboxLanguage),
+    };
+    const previousSnapshot = cloudSnapshotRef.current;
+    cloudSnapshotRef.current = nextSnapshot;
+    cloudReadyRef.current = true;
+
+    if (!previousSnapshot || previousSnapshot.profile !== nextSnapshot.profile) {
+      if (JSON.stringify(profile) !== JSON.stringify(userRef.current)) commitUser(profile);
+    }
+    if (!previousSnapshot || previousSnapshot.forumPosts !== nextSnapshot.forumPosts) {
+      setForumPosts(current =>
+        JSON.stringify(current) === nextSnapshot.forumPosts ? current : remote.forumPosts!
+      );
+    }
+    if (!previousSnapshot || previousSnapshot.sandboxCode !== nextSnapshot.sandboxCode) {
+      setSandboxCodeState(current =>
+        JSON.stringify(current) === nextSnapshot.sandboxCode ? current : remote.sandboxCode!
+      );
+    }
+    if (!previousSnapshot || previousSnapshot.sandboxLanguage !== nextSnapshot.sandboxLanguage) {
+      setSandboxLanguageState(current =>
+        JSON.stringify(current) === nextSnapshot.sandboxLanguage
+          ? current
+          : remote.sandboxLanguage!
+      );
+    }
+  }, [convexData?.data, convexData?.enabled, forumPosts, sandboxCode, sandboxLanguage, syncRetry]);
+
+  useEffect(() => {
+    if (!convexData?.enabled || !cloudReadyRef.current) return;
+    const value = JSON.stringify(user);
+    if (cloudSnapshotRef.current?.profile === value) return;
+
+    const previousValue = cloudSnapshotRef.current?.profile ?? '';
+    cloudSnapshotRef.current = { ...cloudSnapshotRef.current!, profile: value };
+    void convexData.saveProfile(user).then(
+      () => setSyncError(null),
+      (error: unknown) => {
+        if (cloudSnapshotRef.current?.profile === value) {
+          cloudSnapshotRef.current = { ...cloudSnapshotRef.current, profile: previousValue };
+        }
+        setSyncError(error instanceof Error ? error.message : String(error));
+      }
+    );
+  }, [user, convexData, syncRetry]);
+
+  useEffect(() => {
+    if (!convexData?.enabled || !cloudReadyRef.current) return;
+    const value = JSON.stringify(forumPosts);
+    if (cloudSnapshotRef.current?.forumPosts === value) return;
+
+    const previousValue = cloudSnapshotRef.current?.forumPosts ?? '';
+    cloudSnapshotRef.current = { ...cloudSnapshotRef.current!, forumPosts: value };
+    void convexData.saveForumPosts(forumPosts).then(
+      () => setSyncError(null),
+      (error: unknown) => {
+        if (cloudSnapshotRef.current?.forumPosts === value) {
+          cloudSnapshotRef.current = { ...cloudSnapshotRef.current, forumPosts: previousValue };
+        }
+        setSyncError(error instanceof Error ? error.message : String(error));
+      }
+    );
+  }, [forumPosts, convexData, syncRetry]);
+
+  useEffect(() => {
+    if (!convexData?.enabled || !cloudReadyRef.current) return;
+    const value = JSON.stringify(sandboxCode);
+    if (cloudSnapshotRef.current?.sandboxCode === value) return;
+
+    const previousValue = cloudSnapshotRef.current?.sandboxCode ?? '';
+    cloudSnapshotRef.current = { ...cloudSnapshotRef.current!, sandboxCode: value };
+    void convexData.saveSandboxCode(sandboxCode).then(
+      () => setSyncError(null),
+      (error: unknown) => {
+        if (cloudSnapshotRef.current?.sandboxCode === value) {
+          cloudSnapshotRef.current = { ...cloudSnapshotRef.current, sandboxCode: previousValue };
+        }
+        setSyncError(error instanceof Error ? error.message : String(error));
+      }
+    );
+  }, [sandboxCode, convexData, syncRetry]);
+
+  useEffect(() => {
+    if (!convexData?.enabled || !cloudReadyRef.current) return;
+    const value = JSON.stringify(sandboxLanguage);
+    if (cloudSnapshotRef.current?.sandboxLanguage === value) return;
+
+    const previousValue = cloudSnapshotRef.current?.sandboxLanguage ?? '';
+    cloudSnapshotRef.current = { ...cloudSnapshotRef.current!, sandboxLanguage: value };
+    void convexData.saveSandboxLanguage(sandboxLanguage).then(
+      () => setSyncError(null),
+      (error: unknown) => {
+        if (cloudSnapshotRef.current?.sandboxLanguage === value) {
+          cloudSnapshotRef.current = { ...cloudSnapshotRef.current, sandboxLanguage: previousValue };
+        }
+        setSyncError(error instanceof Error ? error.message : String(error));
+      }
+    );
+  }, [sandboxLanguage, convexData, syncRetry]);
+
+  const retryCloudSync = () => setSyncRetry(retry => retry + 1);
 
   const triggerConfetti = () => {
     try {
@@ -561,8 +702,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         addCommentToPost,
         markAnswerAccepted,
         toggleStarProject,
-        streakModalOpen,
-        setStreakModalOpen,
         useStreakFreeze,
         buyStreakFreeze,
         updateUserProfile,
@@ -572,6 +711,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         dismissLevelUpNotification,
         leaderboardUsers: allLeaderboardUsers,
         userRank,
+        cloudSyncEnabled: convexData?.enabled ?? false,
+        syncError,
+        retryCloudSync,
         triggerConfetti
       }}
     >
