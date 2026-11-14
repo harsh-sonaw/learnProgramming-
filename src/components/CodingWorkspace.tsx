@@ -24,9 +24,9 @@ import { HelpPanel } from './HelpPanel';
 type EditorFontSize = 'sm' | 'base' | 'lg';
 
 const EDITOR_TEXT_CLASS: Record<EditorFontSize, string> = {
-  sm: 'text-xs leading-5',
-  base: 'text-sm leading-6',
-  lg: 'text-base leading-6',
+  sm: 'text-base leading-6 sm:text-xs sm:leading-5',
+  base: 'text-base leading-6 sm:text-sm sm:leading-6',
+  lg: 'text-lg leading-7 sm:text-base sm:leading-6',
 };
 
 const SectionLabel: React.FC<{ children: React.ReactNode }> = ({ children }) => (
@@ -73,8 +73,107 @@ export const CodingWorkspace: React.FC = () => {
   const [mobilePane, setMobilePane] = useState<'problem' | 'code'>('problem');
   const [cursor, setCursor] = useState({ line: 1, column: 1 });
 
+  // Auto-suggestion state
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [suggestionIndex, setSuggestionIndex] = useState(0);
+  const [suggestionPos, setSuggestionPos] = useState({ top: 0, left: 0 });
+  const [showSuggestions, setShowSuggestions] = useState(false);
+
+  // Guided next steps state
+  const [nextStep, setNextStep] = useState<string>("Write your solution in the editor.");
+
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const gutterRef = useRef<HTMLDivElement>(null);
+
+  // Suggestions data
+  const LANGUAGE_SUGGESTIONS: Record<string, string[]> = {
+    python: ['print', 'def', 'class', 'import', 'from', 'if', 'else', 'elif', 'for', 'while', 'return', 'len', 'range', 'list', 'dict', 'set', 'str', 'int', 'float', 'bool'],
+    javascript: ['console.log', 'function', 'const', 'let', 'var', 'if', 'else', 'for', 'while', 'return', 'import', 'export', 'class', 'async', 'await', 'try', 'catch', 'map', 'filter', 'reduce'],
+    typescript: ['interface', 'type', 'enum', 'private', 'public', 'readonly', 'implements', 'extends', 'console.log', 'function', 'const', 'let'],
+    java: ['public', 'class', 'static', 'void', 'main', 'String', 'System.out.println', 'int', 'double', 'boolean', 'if', 'else', 'for', 'while', 'return'],
+    go: ['fmt.Println', 'func', 'package', 'import', 'var', 'type', 'struct', 'interface', 'if', 'else', 'for', 'range', 'return', 'make', 'append'],
+    sql: ['SELECT', 'FROM', 'WHERE', 'JOIN', 'GROUP BY', 'ORDER BY', 'HAVING', 'INSERT INTO', 'UPDATE', 'DELETE', 'CREATE TABLE', 'DROP TABLE'],
+  };
+
+  const getWordAtCursor = (val: string, pos: number) => {
+    const textBefore = val.slice(0, pos);
+    const match = textBefore.match(/[\w.]+$/);
+    return match ? match[0] : '';
+  };
+
+  const generateHint = (userCode: string, solutionCode: string): string => {
+    const userLines = userCode.split('\n');
+    const solLines = solutionCode.split('\n');
+    
+    for (let i = 0; i < userLines.length; i++) {
+      if (userLines[i].trim() !== solLines[i]?.trim()) {
+        return `Try: ${solLines[i]?.trim() || "Complete the code"}`;
+      }
+    }
+    
+    if (userLines.length < solLines.length) {
+      return `Next: ${solLines[userLines.length].trim()}`;
+    }
+    
+    return "Keep going! You're on the right track.";
+  };
+
+  const handleEditorChange = (val: string) => {
+    setCode(val);
+    const hint = generateHint(val, exercise.solutionCode);
+    setNextStep(hint);
+
+    const pos = textareaRef.current?.selectionStart || 0;
+    const word = getWordAtCursor(val, pos);
+
+    if (word.length >= 2) {
+      const langSugs = LANGUAGE_SUGGESTIONS[exercise.trackId] || [];
+      const filtered = langSugs.filter(s => s.toLowerCase().startsWith(word.toLowerCase()));
+      if (filtered.length > 0) {
+        setSuggestions(filtered);
+        setSuggestionIndex(0);
+        setShowSuggestions(true);
+
+        // Position suggestions (approximate)
+        if (textareaRef.current) {
+          const lines = val.slice(0, pos).split('\n');
+          const currentLine = lines.length;
+          const currentCol = lines[lines.length - 1].length;
+          setSuggestionPos({
+            top: currentLine * 24 + 10, // Line height is roughly 24px
+            left: currentCol * 9 + 40   // Char width is roughly 9px + gutter width
+          });
+        }
+      } else {
+        setShowSuggestions(false);
+      }
+    } else {
+      setShowSuggestions(false);
+    }
+  };
+
+  const applySuggestion = (sug: string) => {
+    if (!textareaRef.current) return;
+    const pos = textareaRef.current.selectionStart;
+    const val = textareaRef.current.value;
+    const word = getWordAtCursor(val, pos);
+    
+    const before = val.slice(0, pos - word.length);
+    const after = val.slice(pos);
+    const newVal = before + sug + after;
+    
+    setCode(newVal);
+    setShowSuggestions(false);
+
+    setTimeout(() => {
+      if (textareaRef.current) {
+        const newPos = pos - word.length + sug.length;
+        textareaRef.current.selectionStart = textareaRef.current.selectionEnd = newPos;
+        textareaRef.current.focus();
+        updateCursor(textareaRef.current);
+      }
+    }, 0);
+  };
 
   // Sync code whenever exercise changes
   useEffect(() => {
@@ -121,6 +220,28 @@ export const CodingWorkspace: React.FC = () => {
 
   // Tab key and indentation handler in editor
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (showSuggestions) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setSuggestionIndex(i => (i + 1) % suggestions.length);
+        return;
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setSuggestionIndex(i => (i - 1 + suggestions.length) % suggestions.length);
+        return;
+      }
+      if (e.key === 'Enter' || e.key === 'Tab') {
+        e.preventDefault();
+        applySuggestion(suggestions[suggestionIndex]);
+        return;
+      }
+      if (e.key === 'Escape') {
+        setShowSuggestions(false);
+        return;
+      }
+    }
+
     if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
       e.preventDefault();
       handleRunTests();
@@ -152,7 +273,12 @@ export const CodingWorkspace: React.FC = () => {
     try {
       const results = await runCode(exercise.trackId, code, exercise.testCases);
       setRunResults(results);
-      if (!results.allPassed) setFailedRuns(n => n + 1);
+      if (!results.allPassed) {
+        setFailedRuns(n => n + 1);
+        setNextStep("Some tests failed. Fix your code and try again.");
+      } else {
+        setNextStep("All tests passed! Click Submit Solution.");
+      }
       if (results.consoleOutput.length > 0 && results.results.length === 0) {
         setActiveResultTab('console');
       } else {
@@ -180,10 +306,12 @@ export const CodingWorkspace: React.FC = () => {
     try {
       const results = await runCode(exercise.trackId, code, exercise.testCases);
       setRunResults(results);
-      if (!results.allPassed) setFailedRuns(n => n + 1);
-      setActiveResultTab('tests');
-
-      if (results.allPassed) {
+      if (!results.allPassed) {
+        setFailedRuns(n => n + 1);
+        setNextStep("Some tests failed. Fix your code and try again.");
+      } else {
+        setNextStep("Great job! You can now deploy your solution.");
+        setActiveResultTab('tests');
         setSubmissionSuccess(true);
         completeExercise(exercise.id, code, exercise.xpReward);
       }
@@ -220,8 +348,9 @@ export const CodingWorkspace: React.FC = () => {
     exercise.trackId === 'python' ? 'solution.py'
       : exercise.trackId === 'sql' ? 'query.sql'
         : exercise.trackId === 'go' ? 'main.go'
-          : exercise.trackId === 'javascript' ? 'solution.js'
-            : 'solution.ts';
+          : exercise.trackId === 'java' ? 'Solution.java'
+            : exercise.trackId === 'javascript' ? 'solution.js'
+              : 'solution.ts';
 
   const difficultyClass =
     exercise.difficulty === 'Beginner'
@@ -292,7 +421,7 @@ export const CodingWorkspace: React.FC = () => {
               role="tab"
               aria-selected={selected}
               onClick={() => setMobilePane(pane)}
-              className={`flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-2 text-xs font-medium transition-colors ${
+              className={`flex min-h-11 flex-1 items-center justify-center gap-2 rounded-md px-3 py-2 text-xs font-medium transition-colors ${
                 selected ? 'bg-slate-800 text-white' : 'text-slate-400 hover:text-slate-200'
               }`}
             >
@@ -316,8 +445,18 @@ export const CodingWorkspace: React.FC = () => {
           className={`${mobilePane === 'problem' ? 'flex' : 'hidden'} min-w-0 flex-col border-b border-slate-800 bg-slate-900/30 lg:flex lg:w-5/12 lg:overflow-y-auto lg:border-b-0 lg:border-r`}
         >
           <div className="space-y-7 px-5 py-6 sm:px-6">
+            {/* How to complete this exercise */}
+            <div className="flex flex-wrap gap-1.5 rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-2.5" aria-label="Workflow: solve, run tests, submit">
+              {[`Complete the starter code`, 'Run the tests', 'Submit your solution'].map((step, i) => (
+                <span key={i} className="flex items-center gap-1.5 rounded bg-slate-900/70 px-2 py-1 text-[11px] text-slate-200">
+                  <span className="font-mono text-[10px] font-bold text-emerald-400">{i + 1}</span>
+                  {step}
+                </span>
+              ))}
+            </div>
+
             <header>
-              <div className="mb-3 flex flex-wrap items-center gap-2">
+              <div className="mt-3 mb-3 flex flex-wrap items-center gap-2">
                 <span className="font-mono text-[11px] font-semibold uppercase tracking-wider text-slate-400">
                   {exercise.moduleTitle}
                 </span>
@@ -331,7 +470,7 @@ export const CodingWorkspace: React.FC = () => {
 
             {/* Instructions checklist */}
             <section>
-              <SectionLabel>Instructions</SectionLabel>
+              <SectionLabel>Steps to solve</SectionLabel>
               <ol className="space-y-2.5">
                 {exercise.instructions.map((ins, i) => (
                   <li key={i} className="flex gap-3 text-sm leading-6 text-slate-300">
@@ -352,11 +491,11 @@ export const CodingWorkspace: React.FC = () => {
                   {exercise.examples.map((ex, i) => (
                     <div key={i} className="rounded-lg border border-slate-800 bg-slate-950/60 p-3.5 font-mono text-xs">
                       <div className="flex flex-wrap gap-x-2 gap-y-0.5">
-                        <span className="shrink-0 text-slate-500">Input</span>
+                        <span className="shrink-0 text-slate-500">Input:</span>
                         <span className="break-all text-slate-200">{ex.input}</span>
                       </div>
                       <div className="mt-1.5 flex flex-wrap gap-x-2 gap-y-0.5">
-                        <span className="shrink-0 text-slate-500">Output</span>
+                        <span className="shrink-0 text-slate-500">Expected output:</span>
                         <span className="break-all text-emerald-300">{ex.output}</span>
                       </div>
                       {ex.explanation && (
@@ -385,18 +524,18 @@ export const CodingWorkspace: React.FC = () => {
             {/* Tests the solution must pass */}
             {visibleTests.length > 0 && (
               <section>
-                <SectionLabel>Tests your code must pass</SectionLabel>
+                <SectionLabel>What your solution is tested against</SectionLabel>
                 <div className="space-y-2">
                   {visibleTests.map(t => (
                     <div key={t.id} className="rounded-lg border border-slate-800 bg-slate-950/60 p-3.5 text-xs">
                       <p className="font-medium text-slate-200">{t.description}</p>
                       <dl className="mt-1.5 space-y-1 font-mono">
                         <div className="flex flex-wrap gap-x-2">
-                          <dt className="shrink-0 text-slate-500">Input</dt>
+                          <dt className="shrink-0 text-slate-500">Input:</dt>
                           <dd className="break-all text-slate-300">{t.inputDescription}</dd>
                         </div>
                         <div className="flex flex-wrap gap-x-2">
-                          <dt className="shrink-0 text-slate-500">Expected</dt>
+                          <dt className="shrink-0 text-slate-500">Expected:</dt>
                           <dd className="break-all text-emerald-300">{t.expectedOutputDescription}</dd>
                         </div>
                       </dl>
@@ -416,7 +555,7 @@ export const CodingWorkspace: React.FC = () => {
         {/* Right Code Editor & Execution Panel */}
         <section
           aria-label="Code editor and test results"
-          className={`${mobilePane === 'code' ? 'flex' : 'hidden'} h-[36rem] min-w-0 flex-col bg-slate-950 lg:flex lg:h-auto lg:min-h-0 lg:w-7/12`}
+          className={`${mobilePane === 'code' ? 'flex' : 'hidden'} h-[min(36rem,calc(100dvh-13rem))] min-h-80 min-w-0 flex-col bg-slate-950 sm:h-[36rem] lg:flex lg:h-auto lg:min-h-0 lg:w-7/12`}
         >
           {/* Editor Header Toolbar */}
           <div className="flex h-11 shrink-0 items-center justify-between gap-2 border-b border-slate-800 bg-slate-900/60 px-3 sm:px-4">
@@ -471,6 +610,10 @@ export const CodingWorkspace: React.FC = () => {
             </div>
           </div>
 
+          <div className="bg-emerald-950/20 px-4 py-2 text-xs font-semibold text-emerald-400 border-b border-emerald-500/20">
+            Next step: {nextStep}
+          </div>
+
           {/* Interactive Code Editor with Line Numbers */}
           <div className="relative flex min-h-0 flex-1 bg-slate-950 font-mono">
             <div
@@ -486,7 +629,7 @@ export const CodingWorkspace: React.FC = () => {
             <textarea
               ref={textareaRef}
               value={code}
-              onChange={e => setCode(e.target.value)}
+              onChange={e => handleEditorChange(e.target.value)}
               onKeyDown={handleKeyDown}
               onScroll={handleEditorScroll}
               onSelect={e => updateCursor(e.currentTarget)}
@@ -497,6 +640,22 @@ export const CodingWorkspace: React.FC = () => {
               className={`flex-1 resize-none overflow-auto bg-transparent px-3 py-3 text-emerald-300/90 caret-emerald-300 outline-none selection:bg-emerald-500/30 selection:text-white ${EDITOR_TEXT_CLASS[fontSize]}`}
               placeholder="Write your code here..."
             />
+            {showSuggestions && (
+              <ul
+                className="absolute z-10 w-48 rounded border border-slate-700 bg-slate-900 text-sm text-slate-300 shadow-xl"
+                style={{ top: `${suggestionPos.top}px`, left: `${suggestionPos.left}px` }}
+              >
+                {suggestions.map((sug, i) => (
+                  <li
+                    key={sug}
+                    className={`cursor-pointer px-3 py-1 ${i === suggestionIndex ? 'bg-slate-700' : ''}`}
+                    onClick={() => applySuggestion(sug)}
+                  >
+                    {sug}
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
 
           {/* Test Results / Console Drawer */}
@@ -548,8 +707,9 @@ export const CodingWorkspace: React.FC = () => {
               ) : !runResults ? (
                 <div className="flex h-full flex-col items-center justify-center gap-1.5 text-center text-slate-500">
                   <TerminalIcon className="h-5 w-5 text-slate-600" aria-hidden="true" />
-                  <p className="text-[11px]">Run the tests to see results here.</p>
-                  <p className="text-[10px] text-slate-600">Ctrl + Enter</p>
+                  <p className="text-[11px]">Complete the starter code, then select <span className="font-semibold text-slate-300">Run tests</span>.</p>
+                  <p className="text-[11px]">Pass every test, then select <span className="font-semibold text-slate-300">Submit solution</span> to finish.</p>
+                  <p className="text-[10px] text-slate-600">Shortcut: Ctrl + Enter runs tests</p>
                 </div>
               ) : activeResultTab === 'tests' ? (
                 <div className="space-y-2">
@@ -581,14 +741,22 @@ export const CodingWorkspace: React.FC = () => {
                           +{exercise.xpReward} XP added to your streak
                         </p>
                       </div>
-                      {nextExercise && (
+                      <div className="flex gap-2">
                         <button
-                          onClick={() => setCurrentExerciseId(nextExercise.id)}
-                          className="flex shrink-0 items-center gap-1 rounded-md bg-emerald-400 px-2.5 py-1.5 text-[11px] font-bold text-slate-950 transition-colors hover:bg-emerald-300"
+                          onClick={() => console.log('Deploying...')}
+                          className="flex shrink-0 items-center gap-1 rounded-md bg-cyan-400 px-2.5 py-1.5 text-[11px] font-bold text-slate-950 transition-colors hover:bg-cyan-300"
                         >
-                          Next <ArrowRight className="h-3 w-3" aria-hidden="true" />
+                          Deploy
                         </button>
-                      )}
+                        {nextExercise && (
+                          <button
+                            onClick={() => setCurrentExerciseId(nextExercise.id)}
+                            className="flex shrink-0 items-center gap-1 rounded-md bg-emerald-400 px-2.5 py-1.5 text-[11px] font-bold text-slate-950 transition-colors hover:bg-emerald-300"
+                          >
+                            Next <ArrowRight className="h-3 w-3" aria-hidden="true" />
+                          </button>
+                        )}
+                      </div>
                     </div>
                   )}
 
@@ -674,7 +842,7 @@ export const CodingWorkspace: React.FC = () => {
                 className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-md bg-emerald-400 px-3.5 text-xs font-semibold text-slate-950 transition-colors hover:bg-emerald-300 disabled:opacity-50"
               >
                 <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
-                <span>Submit</span>
+                <span>Submit solution</span>
               </button>
             </div>
           </div>
